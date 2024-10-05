@@ -113,21 +113,55 @@ int main(int, char**)
 
     //===============================
 
-    CompileShaders(L"../res/Shaders/VertexShader.hlsl", L"../res/Shaders/PixelShader.hlsl");
-    
+    g_pd3dDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+    D3D11_VIEWPORT viewport = { 0 };
+    viewport.TopLeftX = 0;
+    viewport.TopLeftY = 0;
+    viewport.Width = 1280;
+    viewport.Height = 800;
+    g_pd3dDeviceContext->RSSetViewports(1, &viewport);
+
+
     const glm::vec3 triangle_verticies[3]
     {
         { 0.0f, 0.5f, 0.0f },
         { 0.45f, -0.5f, 0.0f },
         { -0.45f, -0.5f, 0.0f }
     };
-    
+
     ComPtr<ID3D11Buffer> vertex_buffer;
     D3D11_BUFFER_DESC buffer_description = { 0 };
     buffer_description.ByteWidth = sizeof(float) * 9;
     buffer_description.BindFlags = D3D11_BIND_VERTEX_BUFFER;
     D3D11_SUBRESOURCE_DATA srd = { triangle_verticies, 0, 0 };
     g_pd3dDevice->CreateBuffer(&buffer_description, &srd, &vertex_buffer);
+
+
+    ComPtr<ID3D11VertexShader> vertex_shader;
+    ComPtr<ID3D11PixelShader> pixel_shader;
+    ID3DBlob* vs_blob = nullptr;
+    ID3DBlob* ps_blob = nullptr;
+    CompileShaders(&vs_blob, L"../res/Shaders/VertexShader.hlsl", &ps_blob, L"../res/Shaders/PixelShader.hlsl");
+    g_pd3dDevice->CreateVertexShader(vs_blob->GetBufferPointer(), vs_blob->GetBufferSize(), nullptr, &vertex_shader);
+    g_pd3dDevice->CreatePixelShader(ps_blob->GetBufferPointer(), ps_blob->GetBufferSize(), nullptr, &pixel_shader);
+    
+    g_pd3dDeviceContext->VSSetShader(vertex_shader.Get(), nullptr, 0);
+    g_pd3dDeviceContext->PSSetShader(pixel_shader.Get(), nullptr, 0);
+
+
+    // initialize input layout
+    D3D11_INPUT_ELEMENT_DESC input_element_description[] =
+    {
+        {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
+    };
+    ComPtr<ID3D11InputLayout> input_layout = nullptr;
+    g_pd3dDevice->CreateInputLayout(input_element_description, 1, vs_blob->GetBufferPointer(), vs_blob->GetBufferSize(), &input_layout);
+    g_pd3dDeviceContext->IASetInputLayout(input_layout.Get());
+    
+    UINT stride = sizeof(float) * 3;
+    UINT offset = 0;
+    
     //===============================
 
     // Main loop
@@ -147,19 +181,22 @@ int main(int, char**)
             break;
         }
 
-        //========================
-         
-        
-         
-        //========================
-
         const float clear_color_with_alpha[4] = { 0.5f, 0.5f, 0.5f, 1.0f };
         g_pd3dDeviceContext->OMSetRenderTargets(1, &g_mainRenderTargetView, NULL);
         g_pd3dDeviceContext->ClearRenderTargetView(g_mainRenderTargetView, clear_color_with_alpha);
 
+        //========================
+         
+        g_pd3dDeviceContext->IASetVertexBuffers(0, 1, vertex_buffer.GetAddressOf(), &stride, &offset);
+        g_pd3dDeviceContext->Draw(3, 0);
+         
+        //========================
+
         g_pSwapChain->Present(1, 0);
     }
 
+    delete vs_blob;
+    delete ps_blob;
 
     CleanupDeviceD3D();
     ::DestroyWindow(hwnd);

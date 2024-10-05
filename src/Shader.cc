@@ -42,31 +42,26 @@ HRESULT CompileShader(_In_ LPCWSTR src_file, _In_ LPCSTR entry_point, _In_ LPCST
     return hr;
 }
 
-int CompileShaders(LPCWSTR vertex_file_path, LPCWSTR pixel_file_pth)
+int CompileShaders(ID3DBlob** vs_blob, LPCWSTR vertex_file_path, ID3DBlob** ps_blob, LPCWSTR pixel_file_pth)
 {
     // Compile vertex shader
-    ID3DBlob* vs_blob = nullptr;
-    HRESULT hr = CompileShader(vertex_file_path, "VSMain", "vs_4_0_level_9_1", &vs_blob);
+    HRESULT hr = CompileShader(vertex_file_path, "VSMain", "vs_4_0_level_9_1", vs_blob);
     if (FAILED(hr))
     {
         std::cout << "Failed compiling vertex shader %08X: " << hr << "\n";
         return -1;
     }
 
-    // Compile pixel shader
-    ID3DBlob* ps_blob = nullptr;
-    hr = CompileShader(pixel_file_pth, "PSMain", "ps_4_0_level_9_1", &ps_blob);
+    hr = CompileShader(pixel_file_pth, "PSMain", "ps_4_0_level_9_1", ps_blob);
     if (FAILED(hr))
     {
-        vs_blob->Release();
+        (*vs_blob)->Release();
         std::cout << "Failed compiling pixel shader %08X: "<<hr<<"\n";
         return -1;
     }
 
     std::cout << "Shaders Compiled\n";
     
-
-
     std::string vertex_file_input = CW2A(vertex_file_path);
     std::string pixel_file_input = CW2A(pixel_file_pth);
 
@@ -77,27 +72,23 @@ int CompileShaders(LPCWSTR vertex_file_path, LPCWSTR pixel_file_pth)
     if (!vertex_file.is_open())
     {
         std::cout << "Error: Unable to open file " << vertex_file_output << std::endl;
-        vs_blob->Release();
-        ps_blob->Release();
+        (*vs_blob)->Release();
+        (*ps_blob)->Release();
         return false;
     }
-    vertex_file.write(reinterpret_cast<const char*>(vs_blob->GetBufferPointer()), vs_blob->GetBufferSize());
+    vertex_file.write(reinterpret_cast<const char*>((*vs_blob)->GetBufferPointer()), (*vs_blob)->GetBufferSize());
     vertex_file.close();
 
     std::ofstream pixel_file(pixel_file_output, std::ios::binary);
     if (!pixel_file.is_open())
     {
         std::cout << "Error: Unable to open file " << pixel_file_output << std::endl;
-        vs_blob->Release();
-        ps_blob->Release();
+        (*vs_blob)->Release();
+        (*ps_blob)->Release();
         return false;
     }
-    pixel_file.write(reinterpret_cast<const char*>(ps_blob->GetBufferPointer()), ps_blob->GetBufferSize());
+    pixel_file.write(reinterpret_cast<const char*>((*ps_blob)->GetBufferPointer()), (*ps_blob)->GetBufferSize());
     pixel_file.close();
-
-    // Clean up
-    vs_blob->Release();
-    ps_blob->Release();
 
     return 0;
 }
