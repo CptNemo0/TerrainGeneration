@@ -56,13 +56,27 @@ FetchContent_MakeAvailable(glm)
 include_directories(${CPP_INCLUDE_DIRS})
 
 list(APPEND CPP_SOURCE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cc)
+list(APPEND CPP_SOURCE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/Shader.cc)
+list(APPEND CPP_SOURCE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/include/Shader.h)
+
+# Search for the assets files
+file(GLOB_RECURSE ASSETS_FILES 
+	 ${CMAKE_SOURCE_DIR}/res/*.*)
+set_source_files_properties(${ASSETS_FILES} PROPERTIES HEADER_FILE_ONLY TRUE)
+source_group(TREE ${CMAKE_SOURCE_DIR}         FILES ${ASSETS_FILES})
 
 add_executable(${PROJECT_NAME} 
   WIN32
   ${CPP_HEADER_FILES}
-  ${CPP_SOURCE_FILES})
+  ${CPP_SOURCE_FILES}
+  ${ASSETS_FILES})
 
 target_include_directories(${PROJECT_NAME} PUBLIC ${glm_SOURCE_DIR})
 target_include_directories(${PROJECT_NAME} PUBLIC ${imgui_SOURCE_DIR})
 
 target_link_libraries(${PROJECT_NAME} d3d11)
+
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD 
+				   COMMAND ${CMAKE_COMMAND} -E create_symlink 
+				   ${CMAKE_SOURCE_DIR}/res 
+				   ${CMAKE_CURRENT_BINARY_DIR}/res)
