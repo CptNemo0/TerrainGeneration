@@ -65,8 +65,8 @@ int CompileShaders(ID3DBlob** vs_blob, LPCWSTR vertex_file_path, ID3DBlob** ps_b
     std::string vertex_file_input = CW2A(vertex_file_path);
     std::string pixel_file_input = CW2A(pixel_file_pth);
 
-    std::string vertex_file_output = vertex_file_input.substr(0, vertex_file_input.length() - 4) + ".cso";
-    std::string pixel_file_output = pixel_file_input.substr(0, pixel_file_input.length() - 4) + ".cso";
+    std::string vertex_file_output = vertex_file_input.substr(0, vertex_file_input.length() - 4) + "cso";
+    std::string pixel_file_output = pixel_file_input.substr(0, pixel_file_input.length() - 4) + "cso";
 
     std::ofstream vertex_file(vertex_file_output, std::ios::binary);
     if (!vertex_file.is_open())
