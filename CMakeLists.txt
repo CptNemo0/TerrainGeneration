@@ -58,6 +58,7 @@ include_directories(${CPP_INCLUDE_DIRS})
 list(APPEND CPP_SOURCE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cc)
 list(APPEND CPP_SOURCE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/Shader.cc)
 list(APPEND CPP_SOURCE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/include/Shader.h)
+list(APPEND CPP_SOURCE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/include/ConstantBufferStructs.h)
 
 # Search for the assets files
 file(GLOB_RECURSE ASSETS_FILES 
@@ -72,7 +73,22 @@ add_executable(${PROJECT_NAME}
   ${ASSETS_FILES})
 
 target_include_directories(${PROJECT_NAME} PUBLIC ${glm_SOURCE_DIR})
-target_include_directories(${PROJECT_NAME} PUBLIC ${imgui_SOURCE_DIR})
+
+
+target_sources(${PROJECT_NAME} PUBLIC 
+    ${imgui_SOURCE_DIR}/imgui.cpp
+    ${imgui_SOURCE_DIR}/imgui_draw.cpp
+    ${imgui_SOURCE_DIR}/imgui_widgets.cpp
+    ${imgui_SOURCE_DIR}/imgui_tables.cpp
+    ${imgui_SOURCE_DIR}/backends/imgui_impl_dx11.cpp
+    ${imgui_SOURCE_DIR}/backends/imgui_impl_win32.cpp
+)
+
+target_include_directories(${PROJECT_NAME} 
+    PUBLIC 
+    ${imgui_SOURCE_DIR}
+    ${imgui_SOURCE_DIR}/backends
+)
 
 target_link_libraries(${PROJECT_NAME} d3d11)
 
