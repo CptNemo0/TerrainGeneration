@@ -3,9 +3,9 @@
 #include <glm/glm.hpp>
 #include <wrl/client.h>
 
-#include "imgui.h"
-#include "backends/imgui_impl_dx11.h"
-#include "backends/imgui_impl_win32.h"
+#include <imgui.h>
+#include <imgui_impl_win32.h>
+#include <imgui_impl_dx11.h>
 
 #include "../include/Shader.h"
 #include "../include/ConstantBufferStructs.h"
@@ -71,9 +71,16 @@ void CleanupDeviceD3D()
     if (device) { device->Release(); device = NULL; }
 }
 
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
 // Win32 message handler
 LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+    if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam))
+    {
+        return true;
+    }
+        
     switch (msg)
     {
     case WM_SIZE:
@@ -92,6 +99,7 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         ::PostQuitMessage(0);
         return 0;
     }
+
     return ::DefWindowProc(hWnd, msg, wParam, lParam);
 }
 
@@ -99,6 +107,11 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 // Main code
 int main(int, char**)
 {
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    ImGui::StyleColorsDark();
+
     WNDCLASSEX wc = { sizeof(WNDCLASSEX), CS_CLASSDC, WndProc, 0L, 0L, GetModuleHandle(NULL), NULL, NULL, NULL, NULL, _T("Cloth Simulation"), NULL };
     ::RegisterClassEx(&wc);
     HWND hwnd = ::CreateWindow(wc.lpszClassName, _T("ClothSimulation"), WS_OVERLAPPEDWINDOW, 100, 100, 1280, 800, NULL, NULL, wc.hInstance, NULL);
@@ -115,10 +128,7 @@ int main(int, char**)
     ::ShowWindow(hwnd, SW_SHOWDEFAULT);
     ::UpdateWindow(hwnd);
 
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO(); (void)io;
-    ImGui::StyleColorsDark();
+    
     ImGui_ImplWin32_Init(hwnd);  // Pass the window handle here
     ImGui_ImplDX11_Init(device, context);
     //===============================
@@ -227,8 +237,6 @@ int main(int, char**)
 
         //======================== Logic
 
-        color_data.color = DirectX::XMFLOAT4(1.0, 1.0, 1.0, 1.0);
-        
         D3D11_MAPPED_SUBRESOURCE mapped_resource;
         context->Map(color_constant_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource);
         ColorBuffer* data_ptr = (ColorBuffer*)mapped_resource.pData;
