@@ -142,7 +142,6 @@ int main(int, char**)
     viewport.Height = 800;
     context->RSSetViewports(1, &viewport);
 
-
     const glm::vec3 triangle_verticies[]
     {
         { 0.0f, 0.5f, 0.0f },
@@ -184,13 +183,11 @@ int main(int, char**)
     ColorBuffer color_data;
     color_data.color = DirectX::XMFLOAT4(1.0, 0.0, 1.0, 1.0);
 
-    D3D11_BUFFER_DESC color_constant_buffer_description;
+    D3D11_BUFFER_DESC color_constant_buffer_description = { 0 };
     color_constant_buffer_description.ByteWidth = sizeof(ColorBuffer);
     color_constant_buffer_description.Usage = D3D11_USAGE_DYNAMIC;
     color_constant_buffer_description.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
     color_constant_buffer_description.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-    color_constant_buffer_description.MiscFlags = 0;
-    color_constant_buffer_description.StructureByteStride = 0;
 
     D3D11_SUBRESOURCE_DATA color_constant_buffer_srd;
     color_constant_buffer_srd.pSysMem = &color_data;
