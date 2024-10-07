@@ -16,6 +16,13 @@
 #include "../include/ConstantBufferStructs.h"
 // Data
 
+#ifndef GET_X_LPARAM
+    #define GET_X_LPARAM(lp) ((int)(short)LOWORD(lp))
+#endif
+#ifndef GET_Y_LPARAM
+    #define GET_Y_LPARAM(lp) ((int)(short)HIWORD(lp))
+#endif
+
 void CreateRenderTarget()
 {
     ID3D11Texture2D* pBackBuffer;
@@ -151,6 +158,14 @@ int main(int, char**)
     device->CreateRasterizerState(&rasterizer_description, &rasterizer_state);
     context->RSSetState(rasterizer_state);
 
+    DirectX::XMVECTOR  camera_position_iv = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 1.0f);
+    float camera_distance = 3.0f;
+    DirectX::XMVECTOR  camera_angles = DirectX::XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
+    DirectX::XMVECTOR  center_position_iv = DirectX::XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f);
+    DirectX::XMVECTOR  up_direction_iv =    DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+
+    auto view_matrix = DirectX::XMMatrixLookAtLH(camera_position_iv, center_position_iv, up_direction_iv);
+    auto projection_matrix = DirectX::XMMatrixPerspectiveFovLH(0.7864f, 16.0f/9.0f, 0.1f, 1000.0f);
     context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 #pragma endregion     
@@ -197,12 +212,6 @@ int main(int, char**)
     ColorBuffer color_data;
     color_data.color = DirectX::XMFLOAT4(1.0, 0.0, 1.0, 1.0);
 
-    DirectX::XMVECTOR  camera_position_iv = DirectX::XMVectorSet(0.4f, 0.0f, -9.1f, 1.0f);
-    DirectX::XMVECTOR  center_position_iv = DirectX::XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f);
-    DirectX::XMVECTOR  up_direction_iv = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-
-    auto view_matrix = DirectX::XMMatrixLookAtLH(camera_position_iv, center_position_iv, up_direction_iv);
-    auto projection_matrix = DirectX::XMMatrixPerspectiveFovLH(0.7864f, 16.0f / 9.0f, 0.1f, 1000.0f);
     ViewProjBuffer view_proj_data;
     view_proj_data.view_matrix = view_matrix;
     view_proj_data.projection_matrix = projection_matrix;
@@ -249,6 +258,8 @@ int main(int, char**)
  
     // Main loop
     bool done = false;
+    bool rotate = false;
+    POINT prev_mouse_pos = { 0, 0 };
     while (!done)
     {
         MSG msg;
@@ -258,6 +269,51 @@ int main(int, char**)
             ::DispatchMessage(&msg);
             if (msg.message == WM_QUIT)
                 done = true;
+            if (msg.message == WM_MBUTTONDOWN)
+            {
+                rotate = true;
+            }
+            if (msg.message == WM_MBUTTONUP)
+            {
+                rotate = false;
+            }
+            if (msg.message == WM_MOUSEWHEEL)
+            {
+                float scroll_amount = GET_WHEEL_DELTA_WPARAM(msg.wParam) * 0.002f;
+                camera_distance -= scroll_amount;
+
+                float x = DirectX::XMScalarCos(DirectX::XMVectorGetByIndex(camera_angles, 0)) * DirectX::XMScalarCos(DirectX::XMVectorGetByIndex(camera_angles, 1));
+                float y = DirectX::XMScalarSin(DirectX::XMVectorGetByIndex(camera_angles, 1));
+                float z = -1.0 * DirectX::XMScalarSin(DirectX::XMVectorGetByIndex(camera_angles, 0)) * DirectX::XMScalarCos(DirectX::XMVectorGetByIndex(camera_angles, 1));
+                camera_position_iv = DirectX::XMVectorSet(camera_distance * x, camera_distance * y, camera_distance * z, 1.0f);
+                view_proj_data.view_matrix = DirectX::XMMatrixLookAtLH(camera_position_iv, center_position_iv, up_direction_iv);
+            }
+            if (msg.message = WM_MOUSEMOVE)
+            {
+                int mouseX = GET_X_LPARAM(msg.lParam);
+                int mouseY = GET_Y_LPARAM(msg.lParam);
+
+                float deltaX = (mouseX - prev_mouse_pos.x) * 0.01f;
+                float deltaY = (mouseY - prev_mouse_pos.y) * 0.01f;
+
+                prev_mouse_pos.x = mouseX;
+                prev_mouse_pos.y = mouseY;
+
+                if (rotate)
+                {
+                    float a = DirectX::XMVectorGetByIndex(camera_angles, 0) + deltaX;
+                    float b = DirectX::XMVectorGetByIndex(camera_angles, 1) + deltaY;
+
+                    camera_angles = DirectX::XMVectorSetByIndex(camera_angles, a, 0);
+                    camera_angles = DirectX::XMVectorSetByIndex(camera_angles, b, 1);
+
+                    float x = DirectX::XMScalarCos(a) * DirectX::XMScalarCos(b);
+                    float y = DirectX::XMScalarSin(b);
+                    float z = -1.0 * DirectX::XMScalarSin(a) * DirectX::XMScalarCos(b);
+                    camera_position_iv = DirectX::XMVectorSet(camera_distance * x, camera_distance * y, camera_distance * z, 1.0f);
+                    view_proj_data.view_matrix = DirectX::XMMatrixLookAtLH(camera_position_iv, center_position_iv, up_direction_iv);
+                }
+            }
         }
         if (done)
         {
@@ -308,28 +364,6 @@ int main(int, char**)
             color_data.color = DirectX::XMFLOAT4(color_picker[0], color_picker[1], color_picker[2], color_picker[3]);
         }
         ImGui::End();
-
-        float camer_position_sliders[3] = { DirectX::XMVectorGetByIndex(camera_position_iv, 0),
-                                            DirectX::XMVectorGetByIndex(camera_position_iv, 1),
-                                            DirectX::XMVectorGetByIndex(camera_position_iv, 2) };
-
-        if (ImGui::SliderFloat("Camera Position X", &camer_position_sliders[0], -10.0f, 10.0f))
-        {
-            camera_position_iv = DirectX::XMVectorSet(camer_position_sliders[0], camer_position_sliders[1], camer_position_sliders[2], 1.0f);
-            view_proj_data.view_matrix = DirectX::XMMatrixLookAtLH(camera_position_iv, center_position_iv, up_direction_iv);
-        }
-
-        if (ImGui::SliderFloat("Camera Position Y", &camer_position_sliders[1], -10.0f, 10.0f))
-        {
-            camera_position_iv = DirectX::XMVectorSet(camer_position_sliders[0], camer_position_sliders[1], camer_position_sliders[2], 1.0f);
-            view_proj_data.view_matrix = DirectX::XMMatrixLookAtLH(camera_position_iv, center_position_iv, up_direction_iv);
-        }
-
-        if (ImGui::SliderFloat("Camera Position Z", &camer_position_sliders[2], -10.0f, 10.0f))
-        {
-            camera_position_iv = DirectX::XMVectorSet(camer_position_sliders[0], camer_position_sliders[1], camer_position_sliders[2], 1.0f);
-            view_proj_data.view_matrix = DirectX::XMMatrixLookAtLH(camera_position_iv, center_position_iv, up_direction_iv);
-        }
 
         ImGui::Render();
         context->OMSetRenderTargets(1, &main_render_target_view, nullptr);
