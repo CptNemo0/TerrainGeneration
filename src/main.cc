@@ -1,24 +1,29 @@
+#include "../include/global.h"
+
 #include <d3d11.h>
 #include <tchar.h>
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 #include <wrl/client.h>
 
 #include <imgui.h>
 #include <imgui_impl_win32.h>
 #include <imgui_impl_dx11.h>
+#include <xmmintrin.h>
 
 #include "../include/Shader.h"
 #include "../include/ConstantBufferStructs.h"
 // Data
-namespace
-{
-    static ID3D11Device* device = NULL;
-    static ID3D11DeviceContext* context = NULL;
-    static IDXGISwapChain* swap_chain = NULL;
-    static ID3D11RenderTargetView* main_render_target_view = NULL;
-}
 
-using Microsoft::WRL::ComPtr;
+DirectX::XMMATRIX ConvertGLMToXMMATRIX(const glm::mat4& glm_matrix)
+{
+    return DirectX::XMMATRIX(
+        glm_matrix[0][0], glm_matrix[0][1], glm_matrix[0][2], glm_matrix[0][3],  // Row 0
+        glm_matrix[1][0], glm_matrix[1][1], glm_matrix[1][2], glm_matrix[1][3],  // Row 1
+        glm_matrix[2][0], glm_matrix[2][1], glm_matrix[2][2], glm_matrix[2][3],  // Row 2
+        glm_matrix[3][0], glm_matrix[3][1], glm_matrix[3][2], glm_matrix[3][3]   // Row 3
+    );
+}
 
 void CreateRenderTarget()
 {
@@ -140,13 +145,30 @@ int main(int, char**)
     viewport.TopLeftY = 0;
     viewport.Width = 1280;
     viewport.Height = 800;
+    viewport.MinDepth = 0.0f;
+    viewport.MaxDepth = 1.0f;
     context->RSSetViewports(1, &viewport);
+
+    ID3D11DepthStencilState* depth_stencil_state;
+    D3D11_DEPTH_STENCIL_DESC depth_stencil_description;
+    depth_stencil_description.DepthEnable = TRUE;
+    depth_stencil_description.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+    depth_stencil_description.DepthFunc = D3D11_COMPARISON_LESS;
+    device->CreateDepthStencilState(&depth_stencil_description, &depth_stencil_state);
+    context->OMSetDepthStencilState(depth_stencil_state, 1);
+
+    DirectX::XMVECTOR  camera_position_iv = DirectX::XMVectorSet(0.1f, 0.0f, 0.0f, 1.0f);
+    DirectX::XMVECTOR  center_position_iv = DirectX::XMVectorSet(0.0f, 0.0f, 1.0f, 1.0f);
+    DirectX::XMVECTOR  up_direction_iv =    DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+
+    auto view_matrix = DirectX::XMMatrixLookToLH(camera_position_iv, center_position_iv, up_direction_iv);
+    auto projection_matrix = ConvertGLMToXMMATRIX(glm::perspective(45.0f, 16.0f / 9.0f, 0.01f, 1000.00f));
 
     const glm::vec3 triangle_verticies[]
     {
-        { 0.0f, 0.5f, 0.0f },
-        { 0.45f, -0.5f, 0.0f },
-        { -0.45f, -0.5f, 0.0f }
+        { 0.0f, 0.05f, 0.0f },
+        { 0.045f, -0.05f, 0.0f },
+        { -0.045f, -0.05f, 0.0f }
     };
 
     ComPtr<ID3D11Buffer> vertex_buffer;
@@ -179,11 +201,12 @@ int main(int, char**)
     context->VSSetShader(vertex_shader.Get(), nullptr, 0);
     context->PSSetShader(pixel_shader.Get(), nullptr, 0);
 
+    
     ID3D11Buffer* color_constant_buffer;
     ColorBuffer color_data;
     color_data.color = DirectX::XMFLOAT4(1.0, 0.0, 1.0, 1.0);
 
-    D3D11_BUFFER_DESC color_constant_buffer_description = { 0 };
+    D3D11_BUFFER_DESC color_constant_buffer_description = {0};
     color_constant_buffer_description.ByteWidth = sizeof(ColorBuffer);
     color_constant_buffer_description.Usage = D3D11_USAGE_DYNAMIC;
     color_constant_buffer_description.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
@@ -196,6 +219,26 @@ int main(int, char**)
 
     device->CreateBuffer(&color_constant_buffer_description, &color_constant_buffer_srd, &color_constant_buffer);
     context->PSSetConstantBuffers(0, 1, &color_constant_buffer);
+
+    ID3D11Buffer* view_proj_constant_buffer;
+    ViewProjBuffer view_proj_data;
+    view_proj_data.projection_matrix = projection_matrix;
+    view_proj_data.view_matrix = view_matrix;
+    //view_proj_data.view_matrix = DirectX::XMMatrixTranslation(1.0, 0.0, 0.0f);
+
+    D3D11_BUFFER_DESC view_proj_constant_buffer_description = { 0 };
+    view_proj_constant_buffer_description.ByteWidth = sizeof(ViewProjBuffer);
+    view_proj_constant_buffer_description.Usage = D3D11_USAGE_DYNAMIC;
+    view_proj_constant_buffer_description.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+    view_proj_constant_buffer_description.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+
+    D3D11_SUBRESOURCE_DATA view_proj_constant_buffer_srd;
+    view_proj_constant_buffer_srd.pSysMem = &view_proj_data;
+    view_proj_constant_buffer_srd.SysMemPitch = 0;
+    view_proj_constant_buffer_srd.SysMemSlicePitch = 0;
+
+    device->CreateBuffer(&view_proj_constant_buffer_description, &view_proj_constant_buffer_srd, &view_proj_constant_buffer);
+    context->VSSetConstantBuffers(1, 1, &view_proj_constant_buffer);
 
     // initialize input layout
     D3D11_INPUT_ELEMENT_DESC input_element_description[] =
@@ -236,9 +279,14 @@ int main(int, char**)
 
         D3D11_MAPPED_SUBRESOURCE mapped_resource;
         context->Map(color_constant_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource);
-        ColorBuffer* data_ptr = (ColorBuffer*)mapped_resource.pData;
-        *data_ptr = color_data;  // Update the data
+        ColorBuffer* data_ptr1 = (ColorBuffer*)mapped_resource.pData;
+        *data_ptr1 = color_data;  // Update the data
         context->Unmap(color_constant_buffer, 0);
+
+        context->Map(view_proj_constant_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource);
+        ViewProjBuffer* data_ptr2 = (ViewProjBuffer*)mapped_resource.pData;
+        *data_ptr2 = view_proj_data;
+        context->Unmap(view_proj_constant_buffer, 0);
 
         context->IASetVertexBuffers(0, 1, vertex_buffer.GetAddressOf(), &stride, &offset);
         context->IASetIndexBuffer(index_buffer.Get(), DXGI_FORMAT_R32_UINT, 0);
