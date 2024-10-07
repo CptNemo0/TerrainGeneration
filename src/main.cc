@@ -16,16 +16,6 @@
 #include "../include/ConstantBufferStructs.h"
 // Data
 
-DirectX::XMMATRIX ConvertGLMToXMMATRIX(const glm::mat4& glm_matrix)
-{
-    return DirectX::XMMATRIX(
-        glm_matrix[0][0], glm_matrix[0][1], glm_matrix[0][2], glm_matrix[0][3],  // Row 0
-        glm_matrix[1][0], glm_matrix[1][1], glm_matrix[1][2], glm_matrix[1][3],  // Row 1
-        glm_matrix[2][0], glm_matrix[2][1], glm_matrix[2][2], glm_matrix[2][3],  // Row 2
-        glm_matrix[3][0], glm_matrix[3][1], glm_matrix[3][2], glm_matrix[3][3]   // Row 3
-    );
-}
-
 void CreateRenderTarget()
 {
     ID3D11Texture2D* pBackBuffer;
@@ -113,6 +103,8 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 // Main code
 int main(int, char**)
 {
+#pragma region Initialization
+
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO(); (void)io;
@@ -134,12 +126,10 @@ int main(int, char**)
     ::ShowWindow(hwnd, SW_SHOWDEFAULT);
     ::UpdateWindow(hwnd);
 
-    
     ImGui_ImplWin32_Init(hwnd);  // Pass the window handle here
     ImGui_ImplDX11_Init(device, context);
-    //===============================
 
-    context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    //===============================
 
     D3D11_VIEWPORT viewport = { 0 };
     viewport.TopLeftX = 0;
@@ -161,12 +151,11 @@ int main(int, char**)
     device->CreateRasterizerState(&rasterizer_description, &rasterizer_state);
     context->RSSetState(rasterizer_state);
 
-    DirectX::XMVECTOR  camera_position_iv = DirectX::XMVectorSet(0.4f, 0.0f, -9.1f, 1.0f);
-    DirectX::XMVECTOR  center_position_iv = DirectX::XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f);
-    DirectX::XMVECTOR  up_direction_iv =    DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+    context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-    auto view_matrix = DirectX::XMMatrixLookAtLH(camera_position_iv, center_position_iv, up_direction_iv);
-    auto projection_matrix = DirectX::XMMatrixPerspectiveFovLH(0.7864f, 16.0f/9.0f, 0.1f, 1000.0f);
+#pragma endregion     
+    
+#pragma region Resources Initialization
 
     const glm::vec3 triangle_verticies[]
     {
@@ -175,15 +164,10 @@ int main(int, char**)
         { -1.0f, -1.0f, 0.0f }
     };
 
-    for (int i = 0; i < 3; i++)
+    const unsigned int triangle_indices[]
     {
-        DirectX::XMVECTOR position = DirectX::XMVectorSet(triangle_verticies[i].x, triangle_verticies[i].y, triangle_verticies[i].z, 1.0f);
-        auto view_position = DirectX::XMVector4Transform(position, view_matrix);
-        auto proj_position = DirectX::XMVector4Transform(view_position, projection_matrix);
-        std::cout << "wrld position; " << DirectX::XMVectorGetByIndex(position, 0) << " " << DirectX::XMVectorGetByIndex(position, 1) << " " << DirectX::XMVectorGetByIndex(position, 2) << std::endl;
-        std::cout << "view position: " << DirectX::XMVectorGetByIndex(view_position, 0) << " " << DirectX::XMVectorGetByIndex(view_position, 1) << " " << DirectX::XMVectorGetByIndex(view_position, 2) << std::endl;
-        std::cout << "proj position: " << DirectX::XMVectorGetByIndex(proj_position, 0) << " " << DirectX::XMVectorGetByIndex(proj_position, 1) << " " << DirectX::XMVectorGetByIndex(proj_position, 2) << std::endl << std::endl;
-    }
+        0, 1, 2,
+    };
 
     ComPtr<ID3D11Buffer> vertex_buffer;
     D3D11_BUFFER_DESC buffer_description = { 0 };
@@ -192,13 +176,8 @@ int main(int, char**)
     D3D11_SUBRESOURCE_DATA vertex_srd = { triangle_verticies, 0, 0 };
     device->CreateBuffer(&buffer_description, &vertex_srd, &vertex_buffer);
 
-    const unsigned int triangle_indices[]
-    {
-        0, 1, 2,
-    };
-
     ComPtr<ID3D11Buffer> index_buffer;
-    D3D11_BUFFER_DESC index_buffer_description = {0};
+    D3D11_BUFFER_DESC index_buffer_description = { 0 };
     index_buffer_description.ByteWidth = sizeof(unsigned int) * 3;
     index_buffer_description.BindFlags = D3D11_BIND_INDEX_BUFFER;
     D3D11_SUBRESOURCE_DATA index_srd = { triangle_indices, 0, 0 };
@@ -211,45 +190,46 @@ int main(int, char**)
     CompileShaders(&vs_blob, L"../res/Shaders/VertexShader.hlsl", &ps_blob, L"../res/Shaders/PixelShader.hlsl");
     device->CreateVertexShader(vs_blob->GetBufferPointer(), vs_blob->GetBufferSize(), nullptr, &vertex_shader);
     device->CreatePixelShader(ps_blob->GetBufferPointer(), ps_blob->GetBufferSize(), nullptr, &pixel_shader);
-    
+
     context->VSSetShader(vertex_shader.Get(), nullptr, 0);
     context->PSSetShader(pixel_shader.Get(), nullptr, 0);
 
-    
-    ID3D11Buffer* color_constant_buffer;
     ColorBuffer color_data;
     color_data.color = DirectX::XMFLOAT4(1.0, 0.0, 1.0, 1.0);
 
-    D3D11_BUFFER_DESC color_constant_buffer_description = {0};
+    DirectX::XMVECTOR  camera_position_iv = DirectX::XMVectorSet(0.4f, 0.0f, -9.1f, 1.0f);
+    DirectX::XMVECTOR  center_position_iv = DirectX::XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f);
+    DirectX::XMVECTOR  up_direction_iv = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+
+    auto view_matrix = DirectX::XMMatrixLookAtLH(camera_position_iv, center_position_iv, up_direction_iv);
+    auto projection_matrix = DirectX::XMMatrixPerspectiveFovLH(0.7864f, 16.0f / 9.0f, 0.1f, 1000.0f);
+    ViewProjBuffer view_proj_data;
+    view_proj_data.view_matrix = view_matrix;
+    view_proj_data.projection_matrix = projection_matrix;
+
+    ID3D11Buffer* color_constant_buffer;
+    D3D11_BUFFER_DESC color_constant_buffer_description = { 0 };
     color_constant_buffer_description.ByteWidth = sizeof(ColorBuffer);
     color_constant_buffer_description.Usage = D3D11_USAGE_DYNAMIC;
     color_constant_buffer_description.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
     color_constant_buffer_description.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-
     D3D11_SUBRESOURCE_DATA color_constant_buffer_srd;
     color_constant_buffer_srd.pSysMem = &color_data;
     color_constant_buffer_srd.SysMemPitch = 0;
     color_constant_buffer_srd.SysMemSlicePitch = 0;
-
     device->CreateBuffer(&color_constant_buffer_description, &color_constant_buffer_srd, &color_constant_buffer);
     context->PSSetConstantBuffers(0, 1, &color_constant_buffer);
 
     ID3D11Buffer* view_proj_constant_buffer;
-    ViewProjBuffer view_proj_data;
-    view_proj_data.view_matrix = view_matrix;
-    view_proj_data.projection_matrix = projection_matrix;
-    
     D3D11_BUFFER_DESC view_proj_constant_buffer_description = { 0 };
     view_proj_constant_buffer_description.ByteWidth = sizeof(ViewProjBuffer);
     view_proj_constant_buffer_description.Usage = D3D11_USAGE_DYNAMIC;
     view_proj_constant_buffer_description.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
     view_proj_constant_buffer_description.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-
     D3D11_SUBRESOURCE_DATA view_proj_constant_buffer_srd;
     view_proj_constant_buffer_srd.pSysMem = &view_proj_data;
     view_proj_constant_buffer_srd.SysMemPitch = 0;
     view_proj_constant_buffer_srd.SysMemSlicePitch = 0;
-
     device->CreateBuffer(&view_proj_constant_buffer_description, &view_proj_constant_buffer_srd, &view_proj_constant_buffer);
     context->VSSetConstantBuffers(1, 1, &view_proj_constant_buffer);
 
@@ -261,12 +241,12 @@ int main(int, char**)
     ComPtr<ID3D11InputLayout> input_layout = nullptr;
     device->CreateInputLayout(input_element_description, 1, vs_blob->GetBufferPointer(), vs_blob->GetBufferSize(), &input_layout);
     context->IASetInputLayout(input_layout.Get());
-    
+
     UINT stride = sizeof(float) * 3;
     UINT offset = 0;
-    
-    //===============================
 
+#pragma endregion
+ 
     // Main loop
     bool done = false;
     while (!done)
@@ -291,16 +271,22 @@ int main(int, char**)
         //======================== Logic
 
         D3D11_MAPPED_SUBRESOURCE mapped_resource;
-        context->Map(color_constant_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource);
-        ColorBuffer* data_ptr1 = (ColorBuffer*)mapped_resource.pData;
-        *data_ptr1 = color_data;  // Update the data
-        context->Unmap(color_constant_buffer, 0);
-
-        context->Map(view_proj_constant_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource);
-        ViewProjBuffer* data_ptr2 = (ViewProjBuffer*)mapped_resource.pData;
-        *data_ptr2 = view_proj_data;
-        context->Unmap(view_proj_constant_buffer, 0);
-
+        if (color_constant_buffer)
+        {
+            context->Map(color_constant_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource);
+            ColorBuffer* data_ptr1 = (ColorBuffer*)mapped_resource.pData;
+            *data_ptr1 = color_data;  // Update the data
+            context->Unmap(color_constant_buffer, 0);
+        }
+        
+        if (view_proj_constant_buffer)
+        {
+            context->Map(view_proj_constant_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource);
+            ViewProjBuffer* data_ptr2 = (ViewProjBuffer*)mapped_resource.pData;
+            *data_ptr2 = view_proj_data;
+            context->Unmap(view_proj_constant_buffer, 0);
+        }
+        
         context->IASetVertexBuffers(0, 1, vertex_buffer.GetAddressOf(), &stride, &offset);
         context->IASetIndexBuffer(index_buffer.Get(), DXGI_FORMAT_R32_UINT, 0);
         context->VSSetConstantBuffers(1, 1, &view_proj_constant_buffer);
@@ -309,15 +295,15 @@ int main(int, char**)
         //======================== End Logic
 
 
-        //========================= Imgui
-        
+#pragma region IMGUI
+
         ImGui_ImplDX11_NewFrame();
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
-        
+
         ImGui::Begin("Color");
         float color_picker[4] = { color_data.color.x, color_data.color.y, color_data.color.z, color_data.color.w };
-        if (ImGui::ColorPicker4("Pick a color", color_picker)) 
+        if (ImGui::ColorPicker4("Pick a color", color_picker))
         {
             color_data.color = DirectX::XMFLOAT4(color_picker[0], color_picker[1], color_picker[2], color_picker[3]);
         }
@@ -349,7 +335,7 @@ int main(int, char**)
         context->OMSetRenderTargets(1, &main_render_target_view, nullptr);
         ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 
-        //========================= End Imgui
+#pragma endregion
 
         swap_chain->Present(1, 0);
     }
