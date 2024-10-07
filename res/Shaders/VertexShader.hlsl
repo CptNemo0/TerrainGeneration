@@ -21,6 +21,6 @@ PixelInput VSMain(VertexInput input)
     float4 view_position = mul(view_matrix, input.position);
     float4 proj_position = mul(projection_matrix, view_position);
 
-    output.position = view_position; // No transformation, just pass the position through
+    output.position = proj_position; // No transformation, just pass the position through
     return output;
 }

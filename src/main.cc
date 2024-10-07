@@ -5,11 +5,12 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <wrl/client.h>
+#include <xmmintrin.h>
+#include <WinBase.h>
 
 #include <imgui.h>
 #include <imgui_impl_win32.h>
 #include <imgui_impl_dx11.h>
-#include <xmmintrin.h>
 
 #include "../include/Shader.h"
 #include "../include/ConstantBufferStructs.h"
@@ -149,27 +150,40 @@ int main(int, char**)
     viewport.MaxDepth = 1.0f;
     context->RSSetViewports(1, &viewport);
 
-    ID3D11DepthStencilState* depth_stencil_state;
-    D3D11_DEPTH_STENCIL_DESC depth_stencil_description;
-    depth_stencil_description.DepthEnable = TRUE;
-    depth_stencil_description.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
-    depth_stencil_description.DepthFunc = D3D11_COMPARISON_LESS;
-    device->CreateDepthStencilState(&depth_stencil_description, &depth_stencil_state);
-    context->OMSetDepthStencilState(depth_stencil_state, 1);
+    D3D11_RASTERIZER_DESC rasterizer_description;
+    ZeroMemory(&rasterizer_description, sizeof(rasterizer_description));
+    rasterizer_description.FillMode = D3D11_FILL_SOLID;
+    rasterizer_description.CullMode = D3D11_CULL_NONE;
+    rasterizer_description.FrontCounterClockwise = false;
+    rasterizer_description.DepthClipEnable = true;
 
-    DirectX::XMVECTOR  camera_position_iv = DirectX::XMVectorSet(0.1f, 0.0f, 0.0f, 1.0f);
-    DirectX::XMVECTOR  center_position_iv = DirectX::XMVectorSet(0.0f, 0.0f, 1.0f, 1.0f);
+    ID3D11RasterizerState* rasterizer_state = nullptr;
+    device->CreateRasterizerState(&rasterizer_description, &rasterizer_state);
+    context->RSSetState(rasterizer_state);
+
+    DirectX::XMVECTOR  camera_position_iv = DirectX::XMVectorSet(0.4f, 0.0f, -9.1f, 1.0f);
+    DirectX::XMVECTOR  center_position_iv = DirectX::XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f);
     DirectX::XMVECTOR  up_direction_iv =    DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 
-    auto view_matrix = DirectX::XMMatrixLookToLH(camera_position_iv, center_position_iv, up_direction_iv);
-    auto projection_matrix = ConvertGLMToXMMATRIX(glm::perspective(45.0f, 16.0f / 9.0f, 0.01f, 1000.00f));
+    auto view_matrix = DirectX::XMMatrixLookAtLH(camera_position_iv, center_position_iv, up_direction_iv);
+    auto projection_matrix = DirectX::XMMatrixPerspectiveFovLH(0.7864f, 16.0f/9.0f, 0.1f, 1000.0f);
 
     const glm::vec3 triangle_verticies[]
     {
-        { 0.0f, 0.05f, 0.0f },
-        { 0.045f, -0.05f, 0.0f },
-        { -0.045f, -0.05f, 0.0f }
+        { 0.0f, 1.0f, 0.0f },
+        { 1.0f, -1.0f, 0.0f },
+        { -1.0f, -1.0f, 0.0f }
     };
+
+    for (int i = 0; i < 3; i++)
+    {
+        DirectX::XMVECTOR position = DirectX::XMVectorSet(triangle_verticies[i].x, triangle_verticies[i].y, triangle_verticies[i].z, 1.0f);
+        auto view_position = DirectX::XMVector4Transform(position, view_matrix);
+        auto proj_position = DirectX::XMVector4Transform(view_position, projection_matrix);
+        std::cout << "wrld position; " << DirectX::XMVectorGetByIndex(position, 0) << " " << DirectX::XMVectorGetByIndex(position, 1) << " " << DirectX::XMVectorGetByIndex(position, 2) << std::endl;
+        std::cout << "view position: " << DirectX::XMVectorGetByIndex(view_position, 0) << " " << DirectX::XMVectorGetByIndex(view_position, 1) << " " << DirectX::XMVectorGetByIndex(view_position, 2) << std::endl;
+        std::cout << "proj position: " << DirectX::XMVectorGetByIndex(proj_position, 0) << " " << DirectX::XMVectorGetByIndex(proj_position, 1) << " " << DirectX::XMVectorGetByIndex(proj_position, 2) << std::endl << std::endl;
+    }
 
     ComPtr<ID3D11Buffer> vertex_buffer;
     D3D11_BUFFER_DESC buffer_description = { 0 };
@@ -222,10 +236,9 @@ int main(int, char**)
 
     ID3D11Buffer* view_proj_constant_buffer;
     ViewProjBuffer view_proj_data;
-    view_proj_data.projection_matrix = projection_matrix;
     view_proj_data.view_matrix = view_matrix;
-    //view_proj_data.view_matrix = DirectX::XMMatrixTranslation(1.0, 0.0, 0.0f);
-
+    view_proj_data.projection_matrix = projection_matrix;
+    
     D3D11_BUFFER_DESC view_proj_constant_buffer_description = { 0 };
     view_proj_constant_buffer_description.ByteWidth = sizeof(ViewProjBuffer);
     view_proj_constant_buffer_description.Usage = D3D11_USAGE_DYNAMIC;
@@ -290,6 +303,7 @@ int main(int, char**)
 
         context->IASetVertexBuffers(0, 1, vertex_buffer.GetAddressOf(), &stride, &offset);
         context->IASetIndexBuffer(index_buffer.Get(), DXGI_FORMAT_R32_UINT, 0);
+        context->VSSetConstantBuffers(1, 1, &view_proj_constant_buffer);
         context->DrawIndexed(3, 0, 0);
          
         //======================== End Logic
@@ -308,6 +322,28 @@ int main(int, char**)
             color_data.color = DirectX::XMFLOAT4(color_picker[0], color_picker[1], color_picker[2], color_picker[3]);
         }
         ImGui::End();
+
+        float camer_position_sliders[3] = { DirectX::XMVectorGetByIndex(camera_position_iv, 0),
+                                            DirectX::XMVectorGetByIndex(camera_position_iv, 1),
+                                            DirectX::XMVectorGetByIndex(camera_position_iv, 2) };
+
+        if (ImGui::SliderFloat("Camera Position X", &camer_position_sliders[0], -10.0f, 10.0f))
+        {
+            camera_position_iv = DirectX::XMVectorSet(camer_position_sliders[0], camer_position_sliders[1], camer_position_sliders[2], 1.0f);
+            view_proj_data.view_matrix = DirectX::XMMatrixLookAtLH(camera_position_iv, center_position_iv, up_direction_iv);
+        }
+
+        if (ImGui::SliderFloat("Camera Position Y", &camer_position_sliders[1], -10.0f, 10.0f))
+        {
+            camera_position_iv = DirectX::XMVectorSet(camer_position_sliders[0], camer_position_sliders[1], camer_position_sliders[2], 1.0f);
+            view_proj_data.view_matrix = DirectX::XMMatrixLookAtLH(camera_position_iv, center_position_iv, up_direction_iv);
+        }
+
+        if (ImGui::SliderFloat("Camera Position Z", &camer_position_sliders[2], -10.0f, 10.0f))
+        {
+            camera_position_iv = DirectX::XMVectorSet(camer_position_sliders[0], camer_position_sliders[1], camer_position_sliders[2], 1.0f);
+            view_proj_data.view_matrix = DirectX::XMMatrixLookAtLH(camera_position_iv, center_position_iv, up_direction_iv);
+        }
 
         ImGui::Render();
         context->OMSetRenderTargets(1, &main_render_target_view, nullptr);
