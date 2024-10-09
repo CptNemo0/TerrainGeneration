@@ -67,13 +67,15 @@ PixelInput VSMain(VertexInput input)
 
 float4 PSMain(PixelInput input) : SV_TARGET
 {
-    float4 ambient_light = float4(0.1, 0.1, 0.1, 1.0);
+    float4 ambient_light = float4(0.05, 0.05, 0.05, 1.0);
     float4 light_position = float4(0.0, 5.0, 5.0, 1.0);
     float4 diffuse_color = float4(1.0, 1.0, 1.0, 1.0);
     float4 specular_color = float4(1.0, 1.0, 1.0, 1.0);
     float specular_strength = 0.5;
-    float intensity = 55.0;
+    float intensity = 25.0;
     float shinieness = 100.0;
+    float gamma = 2.2;
+    float inverse_gamma = 1.0 / 2.2;
     
     float4 pos_m_light = light_position - input.world_position;
     float distance2light = length(pos_m_light);
@@ -88,5 +90,7 @@ float4 PSMain(PixelInput input) : SV_TARGET
     float spec = pow(max(dot(view_direction, halfway_direction), 0.0), shinieness);
     float4 specular = specular_color * spec * specular_strength;
     
-    return (ambient_light + (diffuse + specular) * attenuation * intensity) * color;
+    float4 after_light = (ambient_light + (diffuse + specular) * attenuation * intensity) * color;
+    after_light.rgb = pow(after_light.rgb, inverse_gamma);
+    return after_light;
 }
