@@ -8,12 +8,15 @@
 #include <xmmintrin.h>
 #include <WinBase.h>
 
+#include <algorithm>
+
 #include <imgui.h>
 #include <imgui_impl_win32.h>
 #include <imgui_impl_dx11.h>
 
 #include "../include/Shader.h"
 #include "../include/ConstantBufferStructs.h"
+
 // Data
 
 #ifndef GET_X_LPARAM
@@ -172,12 +175,14 @@ int main(int, char**)
     
 #pragma region Resources Initialization
 
-    const glm::vec3 triangle_verticies[]
+    const float triangle_verticies[]
     {
-        { 0.0f, 1.0f, 0.0f },
-        { 1.0f, -1.0f, 0.0f },
-        { -1.0f, -1.0f, 0.0f }
+      //position==========| normals=========|
+        0.0f ,  1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
+        1.0f , -1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
+        -1.0f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
     };
+
 
     const unsigned int triangle_indices[]
     {
@@ -186,8 +191,9 @@ int main(int, char**)
 
     ComPtr<ID3D11Buffer> vertex_buffer;
     D3D11_BUFFER_DESC buffer_description = { 0 };
-    buffer_description.ByteWidth = sizeof(float) * 9;
+    buffer_description.ByteWidth = sizeof(float) * 3 * 6;
     buffer_description.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+    buffer_description.StructureByteStride = sizeof(float) * 6;
     D3D11_SUBRESOURCE_DATA vertex_srd = { triangle_verticies, 0, 0 };
     device->CreateBuffer(&buffer_description, &vertex_srd, &vertex_buffer);
 
@@ -202,19 +208,22 @@ int main(int, char**)
     ComPtr<ID3D11PixelShader> pixel_shader;
     ID3DBlob* vs_blob = nullptr;
     ID3DBlob* ps_blob = nullptr;
-    CompileShaders(&vs_blob, L"../res/Shaders/VertexShader.hlsl", &ps_blob, L"../res/Shaders/PixelShader.hlsl");
+    CompileShaders(&vs_blob, &ps_blob, L"../res/Shaders/Shader.hlsl");
     device->CreateVertexShader(vs_blob->GetBufferPointer(), vs_blob->GetBufferSize(), nullptr, &vertex_shader);
     device->CreatePixelShader(ps_blob->GetBufferPointer(), ps_blob->GetBufferSize(), nullptr, &pixel_shader);
 
     context->VSSetShader(vertex_shader.Get(), nullptr, 0);
     context->PSSetShader(pixel_shader.Get(), nullptr, 0);
-
+    
     ColorBuffer color_data;
     color_data.color = DirectX::XMFLOAT4(1.0, 0.0, 1.0, 1.0);
 
     ViewProjBuffer view_proj_data;
     view_proj_data.view_matrix = view_matrix;
     view_proj_data.projection_matrix = projection_matrix;
+
+    CameraBuffer camera_data;
+    camera_data.camera_position = camera_position_iv;
 
     ID3D11Buffer* color_constant_buffer;
     D3D11_BUFFER_DESC color_constant_buffer_description = { 0 };
@@ -242,18 +251,32 @@ int main(int, char**)
     device->CreateBuffer(&view_proj_constant_buffer_description, &view_proj_constant_buffer_srd, &view_proj_constant_buffer);
     context->VSSetConstantBuffers(1, 1, &view_proj_constant_buffer);
 
+    ID3D11Buffer* camera_constant_buffer;
+    D3D11_BUFFER_DESC camera_constant_buffer_description = { 0 };
+    camera_constant_buffer_description.ByteWidth = sizeof(CameraBuffer);
+    camera_constant_buffer_description.Usage = D3D11_USAGE_DYNAMIC;
+    camera_constant_buffer_description.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+    camera_constant_buffer_description.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+    D3D11_SUBRESOURCE_DATA camera_constant_buffer_srd;
+    camera_constant_buffer_srd.pSysMem = &camera_data;
+    camera_constant_buffer_srd.SysMemPitch = 0;
+    camera_constant_buffer_srd.SysMemSlicePitch = 0;
+    device->CreateBuffer(&camera_constant_buffer_description, &camera_constant_buffer_srd, &camera_constant_buffer);
+    context->VSSetConstantBuffers(2, 1, &camera_constant_buffer);
+
     // initialize input layout
     D3D11_INPUT_ELEMENT_DESC input_element_description[] =
     {
-        {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
+        {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,  0, D3D11_INPUT_PER_VERTEX_DATA, 0},
+        {"NORMAL",  0, DXGI_FORMAT_R32G32B32_FLOAT, 0,  D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0}
     };
     ComPtr<ID3D11InputLayout> input_layout = nullptr;
-    device->CreateInputLayout(input_element_description, 1, vs_blob->GetBufferPointer(), vs_blob->GetBufferSize(), &input_layout);
+    device->CreateInputLayout(input_element_description, 2, vs_blob->GetBufferPointer(), vs_blob->GetBufferSize(), &input_layout);
     context->IASetInputLayout(input_layout.Get());
 
-    UINT stride = sizeof(float) * 3;
-    UINT offset = 0;
-
+    uint32_t stride = sizeof(float) * 6;
+    uint32_t offset = 0;
+    
 #pragma endregion
  
     // Main loop
@@ -261,7 +284,7 @@ int main(int, char**)
     bool rotate = false;
     POINT prev_mouse_pos = { 0, 0 };
     while (!done)
-    {
+    {   
         MSG msg;
         while (::PeekMessage(&msg, NULL, 0U, 0U, PM_REMOVE))
         {
@@ -330,17 +353,26 @@ int main(int, char**)
         if (color_constant_buffer)
         {
             context->Map(color_constant_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource);
-            ColorBuffer* data_ptr1 = (ColorBuffer*)mapped_resource.pData;
-            *data_ptr1 = color_data;  // Update the data
+            ColorBuffer* data_ptr = (ColorBuffer*)mapped_resource.pData;
+            *data_ptr = color_data;  // Update the data
             context->Unmap(color_constant_buffer, 0);
         }
         
         if (view_proj_constant_buffer)
         {
             context->Map(view_proj_constant_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource);
-            ViewProjBuffer* data_ptr2 = (ViewProjBuffer*)mapped_resource.pData;
-            *data_ptr2 = view_proj_data;
+            ViewProjBuffer* data_ptr = (ViewProjBuffer*)mapped_resource.pData;
+            *data_ptr = view_proj_data;
             context->Unmap(view_proj_constant_buffer, 0);
+        }
+
+        if (camera_constant_buffer)
+        {
+            context->Map(camera_constant_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource);
+            CameraBuffer* data_ptr = (CameraBuffer*)mapped_resource.pData;
+            camera_data.camera_position = camera_position_iv;
+            *data_ptr = camera_data;
+            context->Unmap(camera_constant_buffer, 0);
         }
         
         context->IASetVertexBuffers(0, 1, vertex_buffer.GetAddressOf(), &stride, &offset);

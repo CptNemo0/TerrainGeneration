@@ -42,17 +42,17 @@ HRESULT CompileShader(_In_ LPCWSTR src_file, _In_ LPCSTR entry_point, _In_ LPCST
     return hr;
 }
 
-int CompileShaders(ID3DBlob** vs_blob, LPCWSTR vertex_file_path, ID3DBlob** ps_blob, LPCWSTR pixel_file_pth)
+int CompileShaders(ID3DBlob** vs_blob, ID3DBlob** ps_blob, LPCWSTR shader_path)
 {
     // Compile vertex shader
-    HRESULT hr = CompileShader(vertex_file_path, "VSMain", "vs_4_0_level_9_1", vs_blob);
+    HRESULT hr = CompileShader(shader_path, "VSMain", "vs_5_0", vs_blob);
     if (FAILED(hr))
     {
         std::cout << "Failed compiling vertex shader %08X: " << hr << "\n";
         return -1;
     }
 
-    hr = CompileShader(pixel_file_pth, "PSMain", "ps_4_0_level_9_1", ps_blob);
+    hr = CompileShader(shader_path, "PSMain", "ps_5_0", ps_blob);
     if (FAILED(hr))
     {
         (*vs_blob)->Release();
@@ -62,16 +62,14 @@ int CompileShaders(ID3DBlob** vs_blob, LPCWSTR vertex_file_path, ID3DBlob** ps_b
 
     std::cout << "Shaders Compiled\n";
     
-    std::string vertex_file_input = CW2A(vertex_file_path);
-    std::string pixel_file_input = CW2A(pixel_file_pth);
+    std::string file_input = CW2A(shader_path);
 
-    std::string vertex_file_output = vertex_file_input.substr(0, vertex_file_input.length() - 4) + "cso";
-    std::string pixel_file_output = pixel_file_input.substr(0, pixel_file_input.length() - 4) + "cso";
+    std::string file_output = file_input.substr(0, file_input.length() - 4) + "cso";
 
-    std::ofstream vertex_file(vertex_file_output, std::ios::binary);
+    std::ofstream vertex_file(file_output, std::ios::binary);
     if (!vertex_file.is_open())
     {
-        std::cout << "Error: Unable to open file " << vertex_file_output << std::endl;
+        std::cout << "Error: Unable to open file " << file_output << std::endl;
         (*vs_blob)->Release();
         (*ps_blob)->Release();
         return false;
@@ -79,16 +77,6 @@ int CompileShaders(ID3DBlob** vs_blob, LPCWSTR vertex_file_path, ID3DBlob** ps_b
     vertex_file.write(reinterpret_cast<const char*>((*vs_blob)->GetBufferPointer()), (*vs_blob)->GetBufferSize());
     vertex_file.close();
 
-    std::ofstream pixel_file(pixel_file_output, std::ios::binary);
-    if (!pixel_file.is_open())
-    {
-        std::cout << "Error: Unable to open file " << pixel_file_output << std::endl;
-        (*vs_blob)->Release();
-        (*ps_blob)->Release();
-        return false;
-    }
-    pixel_file.write(reinterpret_cast<const char*>((*ps_blob)->GetBufferPointer()), (*ps_blob)->GetBufferSize());
-    pixel_file.close();
 
     return 0;
 }
