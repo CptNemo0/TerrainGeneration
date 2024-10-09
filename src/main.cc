@@ -284,7 +284,10 @@ int main(int, char**)
     bool rotate = false;
     POINT prev_mouse_pos = { 0, 0 };
     while (!done)
-    {   
+    {
+
+#pragma region Input handling
+
         MSG msg;
         while (::PeekMessage(&msg, NULL, 0U, 0U, PM_REMOVE))
         {
@@ -292,18 +295,20 @@ int main(int, char**)
             ::DispatchMessage(&msg);
             if (msg.message == WM_QUIT)
                 done = true;
-            if (msg.message == WM_MBUTTONDOWN)
+            else if (msg.message == WM_MBUTTONDOWN)
             {
                 rotate = true;
             }
-            if (msg.message == WM_MBUTTONUP)
+            else if (msg.message == WM_MBUTTONUP)
             {
                 rotate = false;
             }
-            if (msg.message == WM_MOUSEWHEEL)
+            else if (msg.message == WM_MOUSEWHEEL)
             {
                 float scroll_amount = GET_WHEEL_DELTA_WPARAM(msg.wParam) * 0.002f;
                 camera_distance -= scroll_amount;
+
+                camera_distance = fmaxf(camera_distance, 0.5f);
 
                 float x = DirectX::XMScalarCos(DirectX::XMVectorGetByIndex(camera_angles, 0)) * DirectX::XMScalarCos(DirectX::XMVectorGetByIndex(camera_angles, 1));
                 float y = DirectX::XMScalarSin(DirectX::XMVectorGetByIndex(camera_angles, 1));
@@ -311,7 +316,7 @@ int main(int, char**)
                 camera_position_iv = DirectX::XMVectorSet(camera_distance * x, camera_distance * y, camera_distance * z, 1.0f);
                 view_proj_data.view_matrix = DirectX::XMMatrixLookAtLH(camera_position_iv, center_position_iv, up_direction_iv);
             }
-            if (msg.message = WM_MOUSEMOVE)
+            else if (msg.message = WM_MOUSEMOVE)
             {
                 int mouseX = GET_X_LPARAM(msg.lParam);
                 int mouseY = GET_Y_LPARAM(msg.lParam);
@@ -325,7 +330,7 @@ int main(int, char**)
                 if (rotate)
                 {
                     float a = DirectX::XMVectorGetByIndex(camera_angles, 0) + deltaX;
-                    float b = DirectX::XMVectorGetByIndex(camera_angles, 1) + deltaY;
+                    float b = fmaxf(fminf(DirectX::XMVectorGetByIndex(camera_angles, 1) + deltaY, 1.57f), -1.57f);
 
                     camera_angles = DirectX::XMVectorSetByIndex(camera_angles, a, 0);
                     camera_angles = DirectX::XMVectorSetByIndex(camera_angles, b, 1);
@@ -342,6 +347,8 @@ int main(int, char**)
         {
             break;
         }
+
+#pragma endregion
 
         const float clear_color_with_alpha[4] = { 0.5f, 0.5f, 0.5f, 1.0f };
         context->OMSetRenderTargets(1, &main_render_target_view, NULL);
