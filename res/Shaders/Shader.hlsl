@@ -4,7 +4,6 @@ struct VertexInput
 {
     float4 position : POSITION;
     float4 normal   : NORMAL;
-    
 };
 
 struct PixelInput
@@ -31,23 +30,29 @@ cbuffer CameraBuffer : register(b2)
     float4 camera_position;
 };
 
+cbuffer CameraBuffer : register(b3)
+{
+    float4x4 model_matrix;
+    float4x4 ti_model_matrix;
+};
 
 PixelInput VSMain(VertexInput input)
 {
     PixelInput output;
 
-    float4 view_position = mul(view_matrix, input.position);
+    float4 world_position = mul(model_matrix, input.position);
+    float4 view_position = mul(view_matrix, world_position);
     float4 proj_position = mul(projection_matrix, view_position);
  
     output.projected_position = proj_position;
-    output.world_position = input.position;
+    output.world_position = world_position;
     
     float4 difference = camera_position - input.position;
     
     float4 view_direction = normalize(difference);
     float view_dot_product = dot(view_direction.xyz, input.normal.xyz);
     
-    float4 N = input.normal;
+    float4 N = mul(ti_model_matrix, input.normal);
     N = normalize(N);
     
     if (view_dot_product < 0)
@@ -74,6 +79,6 @@ float4 PSMain(PixelInput input) : SV_TARGET
     
     float diffuse = max(dot(light_direction, input.normal), 0.0);
     
-    return ambient_light + diffuse * attenuation * diffuse_color * 25.0;
+    return ambient_light + diffuse * attenuation * color * 25.0;
 
 }

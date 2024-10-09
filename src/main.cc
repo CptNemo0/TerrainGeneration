@@ -183,26 +183,55 @@ int main(int, char**)
         -1.0f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
     };
 
-
     const unsigned int triangle_indices[]
     {
         0, 1, 2,
     };
 
-    ComPtr<ID3D11Buffer> vertex_buffer;
-    D3D11_BUFFER_DESC buffer_description = { 0 };
-    buffer_description.ByteWidth = sizeof(float) * 3 * 6;
-    buffer_description.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-    buffer_description.StructureByteStride = sizeof(float) * 6;
-    D3D11_SUBRESOURCE_DATA vertex_srd = { triangle_verticies, 0, 0 };
-    device->CreateBuffer(&buffer_description, &vertex_srd, &vertex_buffer);
+    ComPtr<ID3D11Buffer> triangle_vertex_buffer;
+    D3D11_BUFFER_DESC traingle_buffer_description = { 0 };
+    traingle_buffer_description.ByteWidth = sizeof(float) * 3 * 6;
+    traingle_buffer_description.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+    traingle_buffer_description.StructureByteStride = sizeof(float) * 6;
+    D3D11_SUBRESOURCE_DATA traingle_vertex_srd = { triangle_verticies, 0, 0 };
+    device->CreateBuffer(&traingle_buffer_description, &traingle_vertex_srd, &triangle_vertex_buffer);
 
-    ComPtr<ID3D11Buffer> index_buffer;
-    D3D11_BUFFER_DESC index_buffer_description = { 0 };
-    index_buffer_description.ByteWidth = sizeof(unsigned int) * 3;
-    index_buffer_description.BindFlags = D3D11_BIND_INDEX_BUFFER;
-    D3D11_SUBRESOURCE_DATA index_srd = { triangle_indices, 0, 0 };
-    device->CreateBuffer(&index_buffer_description, &index_srd, &index_buffer);
+    ComPtr<ID3D11Buffer> triangle_index_buffer;
+    D3D11_BUFFER_DESC triangle_index_buffer_description = { 0 };
+    triangle_index_buffer_description.ByteWidth = sizeof(unsigned int) * 3;
+    triangle_index_buffer_description.BindFlags = D3D11_BIND_INDEX_BUFFER;
+    D3D11_SUBRESOURCE_DATA triangle_index_srd = { triangle_indices, 0, 0 };
+    device->CreateBuffer(&triangle_index_buffer_description, &triangle_index_srd, &triangle_index_buffer);
+
+    const float rectangle_verticies[]
+    {
+        //position========| normals=========|
+        -50.0f, -2.5f,  50.0f, 0.0f, 1.0f, 0.0f,
+         50.0f, -2.5f,  50.0f, 0.0f, 1.0f, 0.0f,
+         50.0f, -2.5f, -50.0f, 0.0f, 1.0f, 0.0f,
+        -50.0f, -2.5f, -50.0f, 0.0f, 1.0f, 0.0f,
+    };
+
+    const unsigned int rectangle_indices[]
+    {
+        0, 1, 3,
+        3, 1, 2
+    };
+
+    ComPtr<ID3D11Buffer> rectangle_vertex_buffer;
+    D3D11_BUFFER_DESC rectangle_buffer_description = { 0 };
+    rectangle_buffer_description.ByteWidth = sizeof(float) * 4 * 6;
+    rectangle_buffer_description.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+    rectangle_buffer_description.StructureByteStride = sizeof(float) * 6;
+    D3D11_SUBRESOURCE_DATA rectangle_vertex_srd = { rectangle_verticies, 0, 0 };
+    device->CreateBuffer(&rectangle_buffer_description, &rectangle_vertex_srd, &rectangle_vertex_buffer);
+
+    ComPtr<ID3D11Buffer> rectangle_index_buffer;
+    D3D11_BUFFER_DESC rectangle_index_buffer_description = { 0 };
+    rectangle_index_buffer_description.ByteWidth = sizeof(unsigned int) * 3 * 2;
+    rectangle_index_buffer_description.BindFlags = D3D11_BIND_INDEX_BUFFER;
+    D3D11_SUBRESOURCE_DATA rectangle_index_srd = { rectangle_indices, 0, 0 };
+    device->CreateBuffer(&rectangle_index_buffer_description, &rectangle_index_srd, &rectangle_index_buffer);
 
     ComPtr<ID3D11VertexShader> vertex_shader;
     ComPtr<ID3D11PixelShader> pixel_shader;
@@ -224,6 +253,10 @@ int main(int, char**)
 
     CameraBuffer camera_data;
     camera_data.camera_position = camera_position_iv;
+
+    ModelMatrixBuffer mm_data;
+    mm_data.model_matrix = DirectX::XMMatrixIdentity();
+    mm_data.ti_model_matrix = DirectX::XMMatrixTranspose(DirectX::XMMatrixInverse(&(DirectX::XMMatrixDeterminant(mm_data.model_matrix)), mm_data.model_matrix));
 
     ID3D11Buffer* color_constant_buffer;
     D3D11_BUFFER_DESC color_constant_buffer_description = { 0 };
@@ -263,6 +296,19 @@ int main(int, char**)
     camera_constant_buffer_srd.SysMemSlicePitch = 0;
     device->CreateBuffer(&camera_constant_buffer_description, &camera_constant_buffer_srd, &camera_constant_buffer);
     context->VSSetConstantBuffers(2, 1, &camera_constant_buffer);
+
+    ID3D11Buffer* mm_constant_buffer;
+    D3D11_BUFFER_DESC mm_constant_buffer_description = { 0 };
+    mm_constant_buffer_description.ByteWidth = sizeof(ModelMatrixBuffer);
+    mm_constant_buffer_description.Usage = D3D11_USAGE_DYNAMIC;
+    mm_constant_buffer_description.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+    mm_constant_buffer_description.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+    D3D11_SUBRESOURCE_DATA mm_constant_buffer_srd;
+    mm_constant_buffer_srd.pSysMem = &mm_data;
+    mm_constant_buffer_srd.SysMemPitch = 0;
+    mm_constant_buffer_srd.SysMemSlicePitch = 0;
+    device->CreateBuffer(&mm_constant_buffer_description, &mm_constant_buffer_srd, &mm_constant_buffer);
+    context->VSSetConstantBuffers(3, 1, &mm_constant_buffer);
 
     // initialize input layout
     D3D11_INPUT_ELEMENT_DESC input_element_description[] =
@@ -381,11 +427,21 @@ int main(int, char**)
             *data_ptr = camera_data;
             context->Unmap(camera_constant_buffer, 0);
         }
+
+        if (mm_constant_buffer)
+        {
+            //mm_data.model_matrix = DirectX::XMMatrixIdentity() * 10.0f;
+            //mm_data.ti_model_matrix = DirectX::XMMatrixTranspose(DirectX::XMMatrixInverse(&(DirectX::XMMatrixDeterminant(mm_data.model_matrix)), mm_data.model_matrix));
+            context->Map(mm_constant_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource);
+            ModelMatrixBuffer* data_ptr = (ModelMatrixBuffer*)mapped_resource.pData;
+            *data_ptr = mm_data;
+            context->Unmap(mm_constant_buffer, 0);
+        }
         
-        context->IASetVertexBuffers(0, 1, vertex_buffer.GetAddressOf(), &stride, &offset);
-        context->IASetIndexBuffer(index_buffer.Get(), DXGI_FORMAT_R32_UINT, 0);
+        context->IASetVertexBuffers(0, 1, rectangle_vertex_buffer.GetAddressOf(), &stride, &offset);
+        context->IASetIndexBuffer(rectangle_index_buffer.Get(), DXGI_FORMAT_R32_UINT, 0);
         context->VSSetConstantBuffers(1, 1, &view_proj_constant_buffer);
-        context->DrawIndexed(3, 0, 0);
+        context->DrawIndexed(6, 0, 0);
          
         //======================== End Logic
 

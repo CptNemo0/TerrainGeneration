@@ -13,6 +13,7 @@ struct ColorBuffer
 struct ModelMatrixBuffer
 {
 	DirectX::XMMATRIX model_matrix;
+	DirectX::XMMATRIX ti_model_matrix;
 };
 
 struct ViewProjBuffer
