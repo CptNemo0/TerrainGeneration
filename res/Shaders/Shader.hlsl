@@ -68,7 +68,7 @@ PixelInput VSMain(VertexInput input)
 float4 PSMain(PixelInput input) : SV_TARGET
 {
     float4 ambient_light = float4(0.05, 0.05, 0.05, 1.0);
-    float4 light_position = float4(0.0, 5.0, 5.0, 1.0);
+    float4 light_position = float4(1.0, 1.0, 1.0, 1.0);
     float4 diffuse_color = float4(1.0, 1.0, 1.0, 1.0);
     float4 specular_color = float4(1.0, 1.0, 1.0, 1.0);
     float specular_strength = 0.5;

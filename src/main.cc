@@ -160,7 +160,7 @@ int main(int, char**)
     ID3D11RasterizerState* rasterizer_state = nullptr;
     device->CreateRasterizerState(&rasterizer_description, &rasterizer_state);
     context->RSSetState(rasterizer_state);
-
+    
     DirectX::XMVECTOR  camera_position_iv = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 1.0f);
     float camera_distance = 3.0f;
     DirectX::XMVECTOR  camera_angles = DirectX::XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
@@ -170,7 +170,8 @@ int main(int, char**)
     auto view_matrix = DirectX::XMMatrixLookAtLH(camera_position_iv, center_position_iv, up_direction_iv);
     auto projection_matrix = DirectX::XMMatrixPerspectiveFovLH(0.7864f, 16.0f/9.0f, 0.1f, 1000.0f);
     context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
+    
+    
 #pragma endregion     
     
 #pragma region Resources Initialization
@@ -206,10 +207,10 @@ int main(int, char**)
     const float rectangle_verticies[]
     {
         //position========| normals=========|
-        -50.0f, -2.5f,  50.0f, 0.0f, 1.0f, 0.0f,
-         50.0f, -2.5f,  50.0f, 0.0f, 1.0f, 0.0f,
-         50.0f, -2.5f, -50.0f, 0.0f, 1.0f, 0.0f,
-        -50.0f, -2.5f, -50.0f, 0.0f, 1.0f, 0.0f,
+        -150.0f, -2.5f,  150.0f, 0.0f, 1.0f, 0.0f,
+         150.0f, -2.5f,  150.0f, 0.0f, 1.0f, 0.0f,
+         150.0f, -2.5f, -150.0f, 0.0f, 1.0f, 0.0f,
+        -150.0f, -2.5f, -150.0f, 0.0f, 1.0f, 0.0f,
     };
 
     const unsigned int rectangle_indices[]
@@ -396,7 +397,7 @@ int main(int, char**)
 
 #pragma endregion
 
-        const float clear_color_with_alpha[4] = { 0.5f, 0.5f, 0.5f, 1.0f };
+        const float clear_color_with_alpha[4] = { 0.2f, 0.2f, 0.2f, 1.0f };
         context->OMSetRenderTargets(1, &main_render_target_view, NULL);
         context->ClearRenderTargetView(main_render_target_view, clear_color_with_alpha);
 
@@ -430,8 +431,6 @@ int main(int, char**)
 
         if (mm_constant_buffer)
         {
-            //mm_data.model_matrix = DirectX::XMMatrixIdentity() * 10.0f;
-            //mm_data.ti_model_matrix = DirectX::XMMatrixTranspose(DirectX::XMMatrixInverse(&(DirectX::XMMatrixDeterminant(mm_data.model_matrix)), mm_data.model_matrix));
             context->Map(mm_constant_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource);
             ModelMatrixBuffer* data_ptr = (ModelMatrixBuffer*)mapped_resource.pData;
             *data_ptr = mm_data;
@@ -442,7 +441,12 @@ int main(int, char**)
         context->IASetIndexBuffer(rectangle_index_buffer.Get(), DXGI_FORMAT_R32_UINT, 0);
         context->VSSetConstantBuffers(1, 1, &view_proj_constant_buffer);
         context->DrawIndexed(6, 0, 0);
-         
+        
+        context->IASetVertexBuffers(0, 1, triangle_vertex_buffer.GetAddressOf(), &stride, &offset);
+        context->IASetIndexBuffer(triangle_index_buffer.Get(), DXGI_FORMAT_R32_UINT, 0);
+        context->VSSetConstantBuffers(1, 1, &view_proj_constant_buffer);
+        context->DrawIndexed(3, 0, 0);
+
         //======================== End Logic
 
 
