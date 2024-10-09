@@ -302,7 +302,7 @@ int main(int, char**)
                 if (rotate)
                 {
                     float a = DirectX::XMVectorGetByIndex(camera_angles, 0) + deltaX;
-                    float b = DirectX::XMVectorGetByIndex(camera_angles, 1) + deltaY;
+                    float b = fmaxf(fminf(DirectX::XMVectorGetByIndex(camera_angles, 1) + deltaY, 1.57f), -1.57f);
 
                     camera_angles = DirectX::XMVectorSetByIndex(camera_angles, a, 0);
                     camera_angles = DirectX::XMVectorSetByIndex(camera_angles, b, 1);
