@@ -350,6 +350,14 @@ int main(int, char**)
     auto matrix_determinant = DirectX::XMMatrixDeterminant(mm_data.model_matrix);
     mm_data.ti_model_matrix = DirectX::XMMatrixTranspose(DirectX::XMMatrixInverse(&matrix_determinant, mm_data.model_matrix));
 
+    SpotlightBuffer spotlight_data;
+    spotlight_data.position = DirectX::XMVECTOR({ 15.0f, 15.0f, 15.0f, 1.0f });
+    spotlight_data.direction = DirectX::XMVECTOR({-15.0f, -15.0f, -15.0f, 1.0f});
+    spotlight_data.diffuse_color = DirectX::XMVECTOR({ 1.0f, 1.0f, 1.0f, 1.0f });
+    spotlight_data.specular_color = DirectX::XMVECTOR({ 1.0f, 1.0f, 1.0f, 1.0f });
+    spotlight_data.cut_off = 0.95f;
+    spotlight_data.intensity = 500.0f;
+   
     ID3D11Buffer* color_constant_buffer;
     D3D11_BUFFER_DESC color_constant_buffer_description = { 0 };
     color_constant_buffer_description.ByteWidth = sizeof(ColorBuffer);
@@ -414,6 +422,19 @@ int main(int, char**)
     grid_constant_buffer_srd.SysMemSlicePitch = 0;
     device->CreateBuffer(&grid_constant_buffer_description, &grid_constant_buffer_srd, &grid_constant_buffer);
     context->PSSetConstantBuffers(4, 1, &grid_constant_buffer);
+
+    ID3D11Buffer* spotlight_constant_buffer;
+    D3D11_BUFFER_DESC spotlight_constant_buffer_description = { 0 };
+    spotlight_constant_buffer_description.ByteWidth = sizeof(SpotlightBuffer);
+    spotlight_constant_buffer_description.Usage = D3D11_USAGE_DYNAMIC;
+    spotlight_constant_buffer_description.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+    spotlight_constant_buffer_description.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+    D3D11_SUBRESOURCE_DATA spotlight_constant_buffer_srd;
+    spotlight_constant_buffer_srd.pSysMem = &grid_data;
+    spotlight_constant_buffer_srd.SysMemPitch = 0;
+    spotlight_constant_buffer_srd.SysMemSlicePitch = 0;
+    device->CreateBuffer(&spotlight_constant_buffer_description, &spotlight_constant_buffer_srd, &spotlight_constant_buffer);
+    context->PSSetConstantBuffers(5, 1, &spotlight_constant_buffer);
 
     // initialize input layout
     D3D11_INPUT_ELEMENT_DESC input_element_description[] =
@@ -554,7 +575,14 @@ int main(int, char**)
             context->Unmap(grid_constant_buffer, 0);
         }
 
-        
+        if (spotlight_constant_buffer)
+        {
+            context->Map(spotlight_constant_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource);
+            SpotlightBuffer* data_ptr = (SpotlightBuffer*)mapped_resource.pData;
+            *data_ptr = spotlight_data;
+            context->Unmap(spotlight_constant_buffer, 0);
+        }
+
         context->VSSetShader(grid_vertex_shader.Get(), nullptr, 0);
         context->PSSetShader(grid_pixel_shader.Get(), nullptr, 0);
         

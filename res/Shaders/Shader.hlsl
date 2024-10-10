@@ -42,7 +42,19 @@ cbuffer GridBuffer : register(b4)
     float offset;
     float width;
     float2 padding;
-}
+};
+
+cbuffer SpotlightBuffer : register(b5)
+{
+    float4 sl_position;
+    float4 sl_direction;
+    float4 sl_diffuse_color;
+    float4 sl_specular_color;
+    float sl_cut_off;
+    float sl_outer_cut_off;
+    float sl_intensity;
+    float sl_padding;
+};
 
 PixelInput VSMain(VertexInput input)
 {
@@ -75,11 +87,11 @@ PixelInput VSMain(VertexInput input)
 float4 PSMain(PixelInput input) : SV_TARGET
 {
     float4 ambient_light = float4(0.2, 0.2, 0.2, 1.0);
-    float4 light_position = float4(1.0, 1.0, 1.0, 1.0);
-    float4 diffuse_color = float4(1.0, 1.0, 1.0, 1.0);
-    float4 specular_color = float4(1.0, 1.0, 1.0, 1.0);
-    float specular_strength = 0.5;
-    float intensity = 4.0;
+    
+    float4 light_position = sl_position;
+    float4 diffuse_color = sl_diffuse_color;
+    float4 specular_color = sl_specular_color;
+    float intensity = sl_intensity;
     float shinieness = 100.0;
     float gamma = 2.2;
     float inverse_gamma = 1.0 / 2.2;
@@ -89,15 +101,23 @@ float4 PSMain(PixelInput input) : SV_TARGET
     float4 light_direction = normalize(pos_m_light);
     float attenuation = 1.0 / (distance2light * distance2light);
 
-    float diffuse = max(dot(light_direction, input.normal), 0.0);
+    float diffuse = 0.0;
+    float spec = 0.0;
+    
+    float theta = dot(light_direction, normalize(-sl_direction));
+    
+    if (theta > sl_cut_off)
+    {
+        float4 view_direction = normalize(camera_position - input.world_position);
+        float4 halfway_direction = normalize(light_direction + view_direction);
+    
+        diffuse = max(dot(light_direction, input.normal), 0.0);
+        spec = pow(max(dot(view_direction, halfway_direction), 0.0), shinieness);
+        
+        float epsilon = sl_cut_off - sl_outer_cut_off;
+    }
 
-    float4 view_direction = normalize(camera_position - input.world_position);
-    float4 halfway_direction = normalize(light_direction + view_direction);
-    
-    float spec = pow(max(dot(view_direction, halfway_direction), 0.0), shinieness);
-    float4 specular = specular_color * spec * specular_strength;
-    
-    float4 after_light = (ambient_light + (diffuse + specular) * attenuation * intensity) * color;
+    float4 after_light = (ambient_light + (diffuse * sl_diffuse_color + spec * sl_specular_color) * attenuation * intensity) * color;
 
     // fog
 

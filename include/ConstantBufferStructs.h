@@ -39,5 +39,17 @@ struct CameraBuffer
 	DirectX::XMVECTOR camera_position;
 };
 
+struct SpotlightBuffer
+{
+	DirectX::XMVECTOR position;
+	DirectX::XMVECTOR direction;
+	DirectX::XMVECTOR diffuse_color;
+	DirectX::XMVECTOR specular_color;
+	float cut_off;
+	float outer_cut_off;
+	float intensity;
+	float padding;
+};
+
 #endif // !CONSTANT_BUFFER_STRUCTS_H
 
