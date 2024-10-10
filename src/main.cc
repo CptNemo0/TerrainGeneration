@@ -122,7 +122,7 @@ int main(int, char**)
 
     WNDCLASSEX wc = { sizeof(WNDCLASSEX), CS_CLASSDC, WndProc, 0L, 0L, GetModuleHandle(NULL), NULL, NULL, NULL, NULL, _T("Cloth Simulation"), NULL };
     ::RegisterClassEx(&wc);
-    HWND hwnd = ::CreateWindow(wc.lpszClassName, _T("ClothSimulation"), WS_OVERLAPPEDWINDOW, 100, 100, 1280, 800, NULL, NULL, wc.hInstance, NULL);
+    HWND hwnd = ::CreateWindow(wc.lpszClassName, _T("ClothSimulation"), WS_OVERLAPPEDWINDOW, 100, 100, 1280, 720, NULL, NULL, wc.hInstance, NULL);
 
     // Initialize Direct3D
     if (!CreateDeviceD3D(hwnd))
@@ -145,7 +145,7 @@ int main(int, char**)
     D3D11_TEXTURE2D_DESC depth_stencil_texture_description;
     ZeroMemory(&depth_stencil_texture_description, sizeof(D3D11_TEXTURE2D_DESC));
     depth_stencil_texture_description.Width = 1280;
-    depth_stencil_texture_description.Height = 800;
+    depth_stencil_texture_description.Height = 720;
     depth_stencil_texture_description.MipLevels = 1;
     depth_stencil_texture_description.ArraySize = 1;
     depth_stencil_texture_description.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
@@ -205,7 +205,7 @@ int main(int, char**)
     viewport.TopLeftX = 0;
     viewport.TopLeftY = 0;
     viewport.Width = 1280;
-    viewport.Height = 800;
+    viewport.Height = 720;
     viewport.MinDepth = 0.0f;
     viewport.MaxDepth = 1.0f;
     context->RSSetViewports(1, &viewport);
@@ -230,7 +230,25 @@ int main(int, char**)
     auto view_matrix = DirectX::XMMatrixLookAtLH(camera_position_iv, center_position_iv, up_direction_iv);
     auto projection_matrix = DirectX::XMMatrixPerspectiveFovLH(0.7864f, 16.0f/9.0f, 0.1f, 1000.0f);
     context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    
+
+    D3D11_BLEND_DESC blendDesc;
+    ZeroMemory(&blendDesc, sizeof(blendDesc));
+
+    blendDesc.RenderTarget[0].BlendEnable = TRUE;
+    blendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
+    blendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
+    blendDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+    blendDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
+    blendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
+    blendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+    blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+
+    ID3D11BlendState* blendState;
+    device->CreateBlendState(&blendDesc, &blendState);
+
+    float blendFactor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+    UINT sampleMask = 0xffffffff;
+    context->OMSetBlendState(blendState, blendFactor, sampleMask);
     
 #pragma endregion     
     
@@ -266,7 +284,7 @@ int main(int, char**)
 
     const float rectangle_verticies[]
     {
-        //position========| normals=========|
+        //position============= | normals=========|
         -150.0f, -2.5f,  150.0f, 0.0f, 1.0f, 0.0f,
          150.0f, -2.5f,  150.0f, 0.0f, 1.0f, 0.0f,
          150.0f, -2.5f, -150.0f, 0.0f, 1.0f, 0.0f,
@@ -304,9 +322,21 @@ int main(int, char**)
 
     context->VSSetShader(vertex_shader.Get(), nullptr, 0);
     context->PSSetShader(pixel_shader.Get(), nullptr, 0);
+
+    ComPtr<ID3D11VertexShader> grid_vertex_shader;
+    ComPtr<ID3D11PixelShader> grid_pixel_shader;
+    ID3DBlob* gvs_blob = nullptr;
+    ID3DBlob* gps_blob = nullptr;
+    CompileShaders(&gvs_blob, &gps_blob, L"../res/Shaders/GridShader.hlsl");
+    device->CreateVertexShader(gvs_blob->GetBufferPointer(), gvs_blob->GetBufferSize(), nullptr, &grid_vertex_shader);
+    device->CreatePixelShader(gps_blob->GetBufferPointer(), gps_blob->GetBufferSize(), nullptr, &grid_pixel_shader);
     
     ColorBuffer color_data;
     color_data.color = DirectX::XMFLOAT4(1.0, 0.0, 1.0, 1.0);
+
+    GridBuffer grid_data;
+    grid_data.offset = 1.0f;
+    grid_data.width = 0.05f;
 
     ViewProjBuffer view_proj_data;
     view_proj_data.view_matrix = view_matrix;
@@ -371,6 +401,19 @@ int main(int, char**)
     mm_constant_buffer_srd.SysMemSlicePitch = 0;
     device->CreateBuffer(&mm_constant_buffer_description, &mm_constant_buffer_srd, &mm_constant_buffer);
     context->VSSetConstantBuffers(3, 1, &mm_constant_buffer);
+
+    ID3D11Buffer* grid_constant_buffer;
+    D3D11_BUFFER_DESC grid_constant_buffer_description = { 0 };
+    grid_constant_buffer_description.ByteWidth = sizeof(GridBuffer);
+    grid_constant_buffer_description.Usage = D3D11_USAGE_DYNAMIC;
+    grid_constant_buffer_description.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+    grid_constant_buffer_description.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+    D3D11_SUBRESOURCE_DATA grid_constant_buffer_srd;
+    grid_constant_buffer_srd.pSysMem = &grid_data;
+    grid_constant_buffer_srd.SysMemPitch = 0;
+    grid_constant_buffer_srd.SysMemSlicePitch = 0;
+    device->CreateBuffer(&grid_constant_buffer_description, &grid_constant_buffer_srd, &grid_constant_buffer);
+    context->PSSetConstantBuffers(4, 1, &grid_constant_buffer);
 
     // initialize input layout
     D3D11_INPUT_ELEMENT_DESC input_element_description[] =
@@ -458,7 +501,12 @@ int main(int, char**)
 
 #pragma endregion
 
-        const float clear_color_with_alpha[4] = { 0.2f, 0.2f, 0.2f, 1.0f };
+        const float clear_color_with_alpha[4] = {
+            color_data.color.x * 0.15f,
+            color_data.color.y * 0.15f,
+            color_data.color.z * 0.15f,
+            1.0f
+        };
         context->ClearRenderTargetView(main_render_target_view, clear_color_with_alpha);
         context->ClearDepthStencilView(depth_stencil_view, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0.0f);
         
@@ -497,12 +545,28 @@ int main(int, char**)
             *data_ptr = mm_data;
             context->Unmap(mm_constant_buffer, 0);
         }
+
+        if (grid_constant_buffer)
+        {
+            context->Map(grid_constant_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource);
+            GridBuffer* data_ptr = (GridBuffer*)mapped_resource.pData;
+            *data_ptr = grid_data;
+            context->Unmap(grid_constant_buffer, 0);
+        }
+
+        
+        context->VSSetShader(grid_vertex_shader.Get(), nullptr, 0);
+        context->PSSetShader(grid_pixel_shader.Get(), nullptr, 0);
         
         context->IASetVertexBuffers(0, 1, rectangle_vertex_buffer.GetAddressOf(), &stride, &offset);
         context->IASetIndexBuffer(rectangle_index_buffer.Get(), DXGI_FORMAT_R32_UINT, 0);
         context->VSSetConstantBuffers(1, 1, &view_proj_constant_buffer);
         context->DrawIndexed(6, 0, 0);
         
+        
+        context->VSSetShader(vertex_shader.Get(), nullptr, 0);
+        context->PSSetShader(pixel_shader.Get(), nullptr, 0);
+
         context->IASetVertexBuffers(0, 1, triangle_vertex_buffer.GetAddressOf(), &stride, &offset);
         context->IASetIndexBuffer(triangle_index_buffer.Get(), DXGI_FORMAT_R32_UINT, 0);
         context->VSSetConstantBuffers(1, 1, &view_proj_constant_buffer);
@@ -523,6 +587,10 @@ int main(int, char**)
         {
             color_data.color = DirectX::XMFLOAT4(color_picker[0], color_picker[1], color_picker[2], color_picker[3]);
         }
+
+        ImGui::SliderFloat("Offset", &grid_data.offset, 0.1f, 1.0f);
+        ImGui::SliderFloat("Width", &grid_data.width, 0.01f, 0.2f);
+
         ImGui::End();
 
         ImGui::Render();

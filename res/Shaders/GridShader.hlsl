@@ -75,6 +75,13 @@ PixelInput VSMain(VertexInput input)
 float4 PSMain(PixelInput input) : SV_TARGET
 {
     float4 ambient_light = float4(0.2, 0.2, 0.2, 1.0);
+
+    if (fmod(abs(input.world_position.x) + 0.5 * width, offset) <= width
+    || fmod(abs(input.world_position.z) + 0.5 * width, offset) <= width) 
+    {
+        ambient_light = float4(0.3, 0.3, 0.3, 1.0);
+    }
+
     float4 light_position = float4(1.0, 1.0, 1.0, 1.0);
     float4 diffuse_color = float4(1.0, 1.0, 1.0, 1.0);
     float4 specular_color = float4(1.0, 1.0, 1.0, 1.0);

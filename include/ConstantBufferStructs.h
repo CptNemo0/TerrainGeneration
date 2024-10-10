@@ -22,6 +22,13 @@ struct ViewProjBuffer
 	DirectX::XMMATRIX projection_matrix;
 };
 
+struct GridBuffer
+{
+	float offset;
+	float width;
+	float padding1, padding2;
+};
+
 struct DirectionalLight
 {
 	DirectX::XMVECTOR direction;
