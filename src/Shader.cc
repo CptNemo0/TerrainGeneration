@@ -62,7 +62,7 @@ int CompileShaders(ID3DBlob** vs_blob, ID3DBlob** ps_blob, LPCWSTR shader_path)
 
     std::cout << "Shaders Compiled\n";
     
-    std::string file_input = CW2A(shader_path);
+    std::string file_input = static_cast<const char*>(CW2A(shader_path));
 
     std::string file_output = file_input.substr(0, file_input.length() - 4) + "cso";
 

@@ -317,7 +317,8 @@ int main(int, char**)
 
     ModelMatrixBuffer mm_data;
     mm_data.model_matrix = DirectX::XMMatrixIdentity();
-    mm_data.ti_model_matrix = DirectX::XMMatrixTranspose(DirectX::XMMatrixInverse(&(DirectX::XMMatrixDeterminant(mm_data.model_matrix)), mm_data.model_matrix));
+    auto matrix_determinant = DirectX::XMMatrixDeterminant(mm_data.model_matrix);
+    mm_data.ti_model_matrix = DirectX::XMMatrixTranspose(DirectX::XMMatrixInverse(&matrix_determinant, mm_data.model_matrix));
 
     ID3D11Buffer* color_constant_buffer;
     D3D11_BUFFER_DESC color_constant_buffer_description = { 0 };
