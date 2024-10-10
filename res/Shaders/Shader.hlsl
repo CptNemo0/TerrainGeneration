@@ -72,7 +72,7 @@ float4 PSMain(PixelInput input) : SV_TARGET
     float4 diffuse_color = float4(1.0, 1.0, 1.0, 1.0);
     float4 specular_color = float4(1.0, 1.0, 1.0, 1.0);
     float specular_strength = 0.5;
-    float intensity = 25.0;
+    float intensity = 4.0;
     float shinieness = 100.0;
     float gamma = 2.2;
     float inverse_gamma = 1.0 / 2.2;
@@ -91,6 +91,6 @@ float4 PSMain(PixelInput input) : SV_TARGET
     float4 specular = specular_color * spec * specular_strength;
     
     float4 after_light = (ambient_light + (diffuse + specular) * attenuation * intensity) * color;
-    after_light.rgb = pow(after_light.rgb, inverse_gamma);
+   
     return after_light;
 }
