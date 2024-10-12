@@ -338,9 +338,9 @@ int main(int, char**)
     spotlight_data.specular_color = DirectX::XMVECTOR({ 1.0f, 1.0f, 1.0f, 1.0f });
     spotlight_data.cut_off = 0.91f;
     spotlight_data.outer_cut_off = 0.82f;
-    spotlight_data.intensity = 100.0f;
+    spotlight_data.intensity = 200.0f;
    
-    LightSpaceBuffer lightspace_data;
+    ViewProjBuffer lightspace_data;
     lightspace_data.view_matrix = DirectX::XMMatrixLookAtLH(spotlight_data.position, DirectX::XMVectorAdd(spotlight_data.position, spotlight_data.direction), up_direction_iv); 
     lightspace_data.projection_matrix = DirectX::XMMatrixPerspectiveFovLH(spotlight_data.cut_off * 2.0f, 16.0f / 9.0f, 0.1f, 1000.0f);
 
@@ -576,10 +576,9 @@ int main(int, char**)
 
 #pragma region Render Depth For Shadow Map
         {
-            float black[4];
-            ZeroMemory(black, sizeof(float) * 4);
+            float white[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
             context->OMSetRenderTargets(1, &depth_render_target_view, depth_stencil_view);
-            context->ClearRenderTargetView(main_render_target_view, black);
+            context->ClearRenderTargetView(depth_render_target_view, white);
             context->ClearDepthStencilView(depth_stencil_view, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0.0f);
             
             context->VSSetShader(sm_vertex_shader, nullptr, 0);
@@ -587,9 +586,6 @@ int main(int, char**)
 
             if (view_proj_constant_buffer)
             {
-                ViewProjBuffer lightspace_data;
-                lightspace_data.view_matrix = DirectX::XMMatrixLookAtLH(spotlight_data.position, DirectX::XMVectorAdd(spotlight_data.position, spotlight_data.direction), up_direction_iv);
-                lightspace_data.projection_matrix = DirectX::XMMatrixPerspectiveFovLH(spotlight_data.cut_off * 2.0f, 16.0f / 9.0f, 0.1f, 1000.0f);
                 context->Map(view_proj_constant_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource);
                 ViewProjBuffer* data_ptr = (ViewProjBuffer*)mapped_resource.pData;
                 *data_ptr = lightspace_data;
@@ -617,9 +613,9 @@ int main(int, char**)
 #pragma endregion
 
         float bgcx = DirectX::XMVectorGetX(background_color_data.color);
-        float bgcy = DirectX::XMVectorGetX(background_color_data.color);
-        float bgcz = DirectX::XMVectorGetX(background_color_data.color);
-        float bgcw = DirectX::XMVectorGetX(background_color_data.color);
+        float bgcy = DirectX::XMVectorGetY(background_color_data.color);
+        float bgcz = DirectX::XMVectorGetZ(background_color_data.color);
+        float bgcw = DirectX::XMVectorGetW(background_color_data.color);
 
         float bgc[4] = { bgcx , bgcy, bgcz, bgcw};
 
@@ -651,15 +647,22 @@ int main(int, char**)
         context->ClearRenderTargetView(main_render_target_view, bgc);
         context->ClearDepthStencilView(depth_stencil_view, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0.0f);
         
+        if (view_proj_constant_buffer)
+        {
+            context->Map(view_proj_constant_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource);
+            ViewProjBuffer* data_ptr = (ViewProjBuffer*)mapped_resource.pData;
+            *data_ptr = lightspace_data;
+            context->Unmap(view_proj_constant_buffer, 0);
+        }
+
         context->VSSetShader(light_vertex_shader, nullptr, 0);
         context->PSSetShader(light_pixel_shader, nullptr, 0);
         
         context->IASetVertexBuffers(0, 1, &screen_quad_vertex_buffer, &stride, &offset);
         context->IASetIndexBuffer(screen_quad_index_buffer, DXGI_FORMAT_R32_UINT, 0);
-        context->PSSetShaderResources(0, 1, &position_shader_resource_view);
-        context->PSSetShaderResources(1, 1, &normal_shader_resource_view);
-        context->PSSetShaderResources(2, 1, &color_shader_resource_view);
-        
+        ID3D11ShaderResourceView* srvs[4] = { position_shader_resource_view, normal_shader_resource_view, color_shader_resource_view, depth_shader_resource_view };
+        context->PSSetShaderResources(0, 4, srvs);
+
         context->DrawIndexed(6, 0, 0);
 
         //======================== End Logic

@@ -70,5 +70,7 @@ PixelInput VSMain(VertexInput input)
 float4 PSMain(PixelInput input) : SV_TARGET
 {
     float z = input.projected_position.z / input.projected_position.w;
+    z = clamp(z, 0.0, 1.0);
+    z = 1 - z;
     return float4(z, z, z, 1.0);
 }

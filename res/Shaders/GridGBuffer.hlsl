@@ -103,7 +103,7 @@ PixelOutput PSMain(PixelInput input)
     if (fmod(abs(input.world_position.x) + 0.5 * width, offset) <= width
     || fmod(abs(input.world_position.z) + 0.5 * width, offset) <= width)
     {
-        const_color += float4(0.3, 0.3, 0.3, 1.0);
+        const_color += float4(0.2, 0.2, 0.2, 1.0);
     }
     
     float dist = length(input.world_position.xz);
@@ -120,11 +120,6 @@ PixelOutput PSMain(PixelInput input)
     output.color = const_color;
     output.position = input.world_position;
     output.normal = input.normal * 0.5 + 0.5;
-    
-    
-    
-    
-    
    
     return output;
 }
