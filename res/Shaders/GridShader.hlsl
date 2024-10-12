@@ -86,6 +86,7 @@ PixelInput VSMain(VertexInput input)
 
 float4 PSMain(PixelInput input) : SV_TARGET
 {
+    const float4 const_color = float4(0.65, 0.65, 0.75, 1.0);
     float4 ambient_light = float4(0.2, 0.2, 0.2, 1.0);
 
     if (fmod(abs(input.world_position.x) + 0.5 * width, offset) <= width
@@ -98,7 +99,7 @@ float4 PSMain(PixelInput input) : SV_TARGET
     float4 diffuse_color = sl_diffuse_color;
     float4 specular_color = sl_specular_color;
     float intensity = sl_intensity;
-    float shinieness = 100.0;
+    float shinieness = 600.0;
     float gamma = 2.2;
     float inverse_gamma = 1.0 / 2.2;
     
@@ -121,9 +122,13 @@ float4 PSMain(PixelInput input) : SV_TARGET
         spec = pow(max(dot(view_direction, halfway_direction), 0.0), shinieness);
         
         float epsilon = sl_cut_off - sl_outer_cut_off;
+        float sl_intensity = clamp((theta - sl_outer_cut_off) / epsilon, 0.0, 1.0);
+        
+        diffuse *= sl_intensity;
+
     }
 
-    float4 after_light = (ambient_light + (diffuse * sl_diffuse_color + spec * sl_specular_color) * attenuation * intensity) * color;
+    float4 after_light = (ambient_light + (diffuse * sl_diffuse_color + spec * sl_specular_color) * attenuation * intensity) * const_color;
 
     // fog
 

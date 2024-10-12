@@ -17,99 +17,6 @@
 #include "../include/Shader.h"
 #include "../include/ConstantBufferStructs.h"
 
-// Data
-
-#ifndef GET_X_LPARAM
-    #define GET_X_LPARAM(lp) ((int)(short)LOWORD(lp))
-#endif
-#ifndef GET_Y_LPARAM
-    #define GET_Y_LPARAM(lp) ((int)(short)HIWORD(lp))
-#endif
-
-void CreateRenderTarget()
-{
-    ID3D11Texture2D* pBackBuffer;
-    swap_chain->GetBuffer(0, IID_PPV_ARGS(&pBackBuffer));
-    device->CreateRenderTargetView(pBackBuffer, NULL, &main_render_target_view);
-    pBackBuffer->Release();
-}
-
-void CleanupRenderTarget()
-{
-    if (main_render_target_view) { main_render_target_view->Release(); main_render_target_view = NULL; }
-}
-
-bool CreateDeviceD3D(HWND hWnd)
-{
-    // Setup swap chain
-    DXGI_SWAP_CHAIN_DESC sd;
-    ZeroMemory(&sd, sizeof(sd));
-    sd.BufferCount = 2;
-    sd.BufferDesc.Width = 0;
-    sd.BufferDesc.Height = 0;
-    sd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    sd.BufferDesc.RefreshRate.Numerator = 60;
-    sd.BufferDesc.RefreshRate.Denominator = 1;
-    sd.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
-    sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-    sd.OutputWindow = hWnd;
-    sd.SampleDesc.Count = 1;
-    sd.SampleDesc.Quality = 0;
-    sd.Windowed = TRUE;
-    sd.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
-
-    UINT createDeviceFlags = 0;
-    //createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
-    D3D_FEATURE_LEVEL featureLevel;
-    const D3D_FEATURE_LEVEL featureLevelArray[2] = { D3D_FEATURE_LEVEL_11_0, D3D_FEATURE_LEVEL_10_0, };
-    if (D3D11CreateDeviceAndSwapChain(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, createDeviceFlags, featureLevelArray, 2, D3D11_SDK_VERSION, &sd, &swap_chain, &device, &featureLevel, &context) != S_OK)
-        return false;
-
-    CreateRenderTarget();
-    return true;
-}
-
-void CleanupDeviceD3D()
-{
-    CleanupRenderTarget();
-    if (swap_chain) { swap_chain->Release(); swap_chain = NULL; }
-    if (context) { context->Release(); context = NULL; }
-    if (device) { device->Release(); device = NULL; }
-}
-
-extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-
-// Win32 message handler
-LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
-{
-    if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam))
-    {
-        return true;
-    }
-        
-    switch (msg)
-    {
-    case WM_SIZE:
-        if (device != NULL && wParam != SIZE_MINIMIZED)
-        {
-            CleanupRenderTarget();
-            swap_chain->ResizeBuffers(0, (UINT)LOWORD(lParam), (UINT)HIWORD(lParam), DXGI_FORMAT_UNKNOWN, 0);
-            CreateRenderTarget();
-        }
-        return 0;
-    case WM_SYSCOMMAND:
-        if ((wParam & 0xfff0) == SC_KEYMENU) // Disable ALT application menu
-            return 0;
-        break;
-    case WM_DESTROY:
-        ::PostQuitMessage(0);
-        return 0;
-    }
-
-    return ::DefWindowProc(hWnd, msg, wParam, lParam);
-}
-
-
 // Main code
 int main(int, char**)
 {
@@ -122,7 +29,7 @@ int main(int, char**)
 
     WNDCLASSEX wc = { sizeof(WNDCLASSEX), CS_CLASSDC, WndProc, 0L, 0L, GetModuleHandle(NULL), NULL, NULL, NULL, NULL, _T("Cloth Simulation"), NULL };
     ::RegisterClassEx(&wc);
-    HWND hwnd = ::CreateWindow(wc.lpszClassName, _T("ClothSimulation"), WS_OVERLAPPEDWINDOW, 100, 100, 1280, 720, NULL, NULL, wc.hInstance, NULL);
+    HWND hwnd = ::CreateWindow(wc.lpszClassName, _T("ClothSimulation"), WS_OVERLAPPEDWINDOW, 100, 100, WIDTH, HEIGHT, NULL, NULL, wc.hInstance, NULL);
 
     // Initialize Direct3D
     if (!CreateDeviceD3D(hwnd))
@@ -141,84 +48,14 @@ int main(int, char**)
 
     //===============================
 
-    ID3D11Texture2D* depth_stencil_texture = nullptr;
-    D3D11_TEXTURE2D_DESC depth_stencil_texture_description;
-    ZeroMemory(&depth_stencil_texture_description, sizeof(D3D11_TEXTURE2D_DESC));
-    depth_stencil_texture_description.Width = 1280;
-    depth_stencil_texture_description.Height = 720;
-    depth_stencil_texture_description.MipLevels = 1;
-    depth_stencil_texture_description.ArraySize = 1;
-    depth_stencil_texture_description.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-    depth_stencil_texture_description.SampleDesc.Count = 1;
-    depth_stencil_texture_description.SampleDesc.Quality = 0;
-    depth_stencil_texture_description.Usage = D3D11_USAGE_DEFAULT;
-    depth_stencil_texture_description.BindFlags = D3D10_BIND_DEPTH_STENCIL;
-    depth_stencil_texture_description.CPUAccessFlags = 0;
-    depth_stencil_texture_description.MiscFlags = 0;
-    if (HRESULT result = device->CreateTexture2D(&depth_stencil_texture_description, nullptr, &depth_stencil_texture); result != 0)
-    {
-        std::cout << result << std::endl;
-    }
-
-    D3D11_DEPTH_STENCIL_DESC depth_stencil_description;
-    ZeroMemory(&depth_stencil_description, sizeof(D3D11_DEPTH_STENCIL_DESC));
-    
-    depth_stencil_description.DepthEnable = true;
-    depth_stencil_description.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
-    depth_stencil_description.DepthFunc = D3D11_COMPARISON_LESS;
-    depth_stencil_description.StencilEnable = true;
-    depth_stencil_description.StencilReadMask = 0xFF;
-    depth_stencil_description.StencilWriteMask = 0xFF;
-    depth_stencil_description.FrontFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
-    depth_stencil_description.FrontFace.StencilDepthFailOp = D3D11_STENCIL_OP_INCR;
-    depth_stencil_description.FrontFace.StencilPassOp = D3D11_STENCIL_OP_KEEP;
-    depth_stencil_description.FrontFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
-    depth_stencil_description.BackFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
-    depth_stencil_description.BackFace.StencilDepthFailOp = D3D11_STENCIL_OP_DECR;
-    depth_stencil_description.BackFace.StencilPassOp = D3D11_STENCIL_OP_KEEP;
-    depth_stencil_description.BackFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
-
-    ID3D11DepthStencilState* depth_stencil_state;
-    if (HRESULT result = device->CreateDepthStencilState(&depth_stencil_description, &depth_stencil_state); result != 0)
-    {
-        std::cout << result << std::endl;
-    }
-
-    context->OMSetDepthStencilState(depth_stencil_state, 1);
-
-    D3D11_DEPTH_STENCIL_VIEW_DESC depth_stencil_view_description;
-    ZeroMemory(&depth_stencil_view_description, sizeof(D3D11_DEPTH_STENCIL_VIEW_DESC));
-    depth_stencil_view_description.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-    depth_stencil_view_description.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
-    depth_stencil_view_description.Texture2D.MipSlice = 0;
-
-    ID3D11DepthStencilView* depth_stencil_view;
-    
-    if (auto result = device->CreateDepthStencilView(depth_stencil_texture, &depth_stencil_view_description, &depth_stencil_view); result != 0)
-    {
-        std::cout << result << std::endl;
-    }
-    
-    context->OMSetRenderTargets(1, &main_render_target_view, depth_stencil_view);
-    
-    D3D11_VIEWPORT viewport = { 0 };
-    viewport.TopLeftX = 0;
-    viewport.TopLeftY = 0;
-    viewport.Width = 1280;
-    viewport.Height = 720;
-    viewport.MinDepth = 0.0f;
-    viewport.MaxDepth = 1.0f;
+    InitViewport();
     context->RSSetViewports(1, &viewport);
 
-    D3D11_RASTERIZER_DESC rasterizer_description;
-    ZeroMemory(&rasterizer_description, sizeof(rasterizer_description));
-    rasterizer_description.FillMode = D3D11_FILL_SOLID;
-    rasterizer_description.CullMode = D3D11_CULL_NONE;
-    rasterizer_description.FrontCounterClockwise = false;
-    rasterizer_description.DepthClipEnable = true;
-
-    ID3D11RasterizerState* rasterizer_state = nullptr;
-    device->CreateRasterizerState(&rasterizer_description, &rasterizer_state);
+    InitDepthStencilBuffer();
+    context->OMSetDepthStencilState(depth_stencil_state, 1);
+    context->OMSetRenderTargets(1, &main_render_target_view, depth_stencil_view);
+    
+    InitRasterizer();
     context->RSSetState(rasterizer_state);
     
     DirectX::XMVECTOR  camera_position_iv = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 1.0f);
@@ -229,6 +66,7 @@ int main(int, char**)
 
     auto view_matrix = DirectX::XMMatrixLookAtLH(camera_position_iv, center_position_iv, up_direction_iv);
     auto projection_matrix = DirectX::XMMatrixPerspectiveFovLH(0.7864f, 16.0f/9.0f, 0.1f, 1000.0f);
+    
     context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
     D3D11_BLEND_DESC blendDesc;
@@ -254,50 +92,35 @@ int main(int, char**)
     
 #pragma region Resources Initialization
 
-    const float triangle_verticies[]
-    {
-      //position==========| normals=========|
-        0.0f ,  1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
-        1.0f , -1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
-        -1.0f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
-    };
+    ID3D11Buffer* triangle_vertex_buffer = nullptr;
+    D3D11_BUFFER_DESC traingle_buffer_description;
+    D3D11_SUBRESOURCE_DATA traingle_vertex_srd;
 
-    const unsigned int triangle_indices[]
-    {
-        0, 1, 2,
-    };
+    ZeroMemory(&traingle_buffer_description, sizeof(D3D11_BUFFER_DESC));
+    ZeroMemory(&traingle_vertex_srd, sizeof(D3D11_SUBRESOURCE_DATA));
 
-    ComPtr<ID3D11Buffer> triangle_vertex_buffer;
-    D3D11_BUFFER_DESC traingle_buffer_description = { 0 };
     traingle_buffer_description.ByteWidth = sizeof(float) * 3 * 6;
+    traingle_buffer_description.Usage = D3D11_USAGE_DEFAULT;
     traingle_buffer_description.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+    traingle_buffer_description.CPUAccessFlags = 0;
+    traingle_buffer_description.MiscFlags = 0;
     traingle_buffer_description.StructureByteStride = sizeof(float) * 6;
-    D3D11_SUBRESOURCE_DATA traingle_vertex_srd = { triangle_verticies, 0, 0 };
+
+    traingle_vertex_srd.pSysMem = triangle_verticies;
+    traingle_vertex_srd.SysMemPitch = 0;
+    traingle_vertex_srd.SysMemSlicePitch = 0;
+
     device->CreateBuffer(&traingle_buffer_description, &traingle_vertex_srd, &triangle_vertex_buffer);
 
-    ComPtr<ID3D11Buffer> triangle_index_buffer;
+    ID3D11Buffer* triangle_index_buffer;
     D3D11_BUFFER_DESC triangle_index_buffer_description = { 0 };
     triangle_index_buffer_description.ByteWidth = sizeof(unsigned int) * 3;
     triangle_index_buffer_description.BindFlags = D3D11_BIND_INDEX_BUFFER;
     D3D11_SUBRESOURCE_DATA triangle_index_srd = { triangle_indices, 0, 0 };
     device->CreateBuffer(&triangle_index_buffer_description, &triangle_index_srd, &triangle_index_buffer);
 
-    const float rectangle_verticies[]
-    {
-        //position============= | normals=========|
-        -150.0f, -2.5f,  150.0f, 0.0f, 1.0f, 0.0f,
-         150.0f, -2.5f,  150.0f, 0.0f, 1.0f, 0.0f,
-         150.0f, -2.5f, -150.0f, 0.0f, 1.0f, 0.0f,
-        -150.0f, -2.5f, -150.0f, 0.0f, 1.0f, 0.0f,
-    };
-
-    const unsigned int rectangle_indices[]
-    {
-        0, 1, 3,
-        3, 1, 2
-    };
-
-    ComPtr<ID3D11Buffer> rectangle_vertex_buffer;
+    // Rectangle Buffers Buffer
+    ID3D11Buffer* rectangle_vertex_buffer;
     D3D11_BUFFER_DESC rectangle_buffer_description = { 0 };
     rectangle_buffer_description.ByteWidth = sizeof(float) * 4 * 6;
     rectangle_buffer_description.BindFlags = D3D11_BIND_VERTEX_BUFFER;
@@ -305,32 +128,88 @@ int main(int, char**)
     D3D11_SUBRESOURCE_DATA rectangle_vertex_srd = { rectangle_verticies, 0, 0 };
     device->CreateBuffer(&rectangle_buffer_description, &rectangle_vertex_srd, &rectangle_vertex_buffer);
 
-    ComPtr<ID3D11Buffer> rectangle_index_buffer;
+    ID3D11Buffer* rectangle_index_buffer;
     D3D11_BUFFER_DESC rectangle_index_buffer_description = { 0 };
     rectangle_index_buffer_description.ByteWidth = sizeof(unsigned int) * 3 * 2;
     rectangle_index_buffer_description.BindFlags = D3D11_BIND_INDEX_BUFFER;
     D3D11_SUBRESOURCE_DATA rectangle_index_srd = { rectangle_indices, 0, 0 };
     device->CreateBuffer(&rectangle_index_buffer_description, &rectangle_index_srd, &rectangle_index_buffer);
+    // Rectangle Buffers End
 
-    ComPtr<ID3D11VertexShader> vertex_shader;
-    ComPtr<ID3D11PixelShader> pixel_shader;
+    // Screen Quad Buffers
+    ID3D11Buffer* screen_quad_vertex_buffer;
+    D3D11_BUFFER_DESC screen_quad_buffer_description = { 0 };
+    screen_quad_buffer_description.ByteWidth = sizeof(float) * 4 * 6;
+    screen_quad_buffer_description.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+    screen_quad_buffer_description.StructureByteStride = sizeof(float) * 6;
+    D3D11_SUBRESOURCE_DATA screen_quad_vertex_srd = { screen_quad_verticies, 0, 0 };
+    device->CreateBuffer(&screen_quad_buffer_description, &screen_quad_vertex_srd, &screen_quad_vertex_buffer);
+
+    ID3D11Buffer* screen_quad_index_buffer;
+    D3D11_BUFFER_DESC screen_quad_index_buffer_description = { 0 };
+    screen_quad_index_buffer_description.ByteWidth = sizeof(unsigned int) * 3 * 2;
+    screen_quad_index_buffer_description.BindFlags = D3D11_BIND_INDEX_BUFFER;
+    D3D11_SUBRESOURCE_DATA screen_quad_index_srd = { screen_quad_indices, 0, 0 };
+    device->CreateBuffer(&screen_quad_index_buffer_description, &screen_quad_index_srd, &screen_quad_index_buffer);
+    // Screen Quad Buffers End
+
+    // New texture
+    ID3D11Texture2D* aux_texture;
+    ID3D11RenderTargetView* aux_render_target_view;
+    ID3D11ShaderResourceView* aux_shader_resource_view;
+    D3D11_TEXTURE2D_DESC texture_description = {};
+    texture_description.Width = WIDTH;  
+    texture_description.Height = HEIGHT;
+    texture_description.MipLevels = 1;
+    texture_description.ArraySize = 1;
+    texture_description.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    texture_description.SampleDesc.Count = 1;
+    texture_description.Usage = D3D11_USAGE_DEFAULT;
+    texture_description.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+
+    if (device->CreateTexture2D(&texture_description, nullptr, &aux_texture))
+    {
+        std::cout << "Creating aux texture failed\n";
+        exit(1);
+    }
+
+    if (device->CreateShaderResourceView(aux_texture, nullptr, &aux_shader_resource_view))
+    {
+        std::cout << "Creating aux_shader_resource_view failed\n";
+        exit(1);
+    }
+
+    if (device->CreateRenderTargetView(aux_texture, nullptr, &aux_render_target_view))
+    {
+        std::cout << "Creating aux_shader_resource_view failed\n";
+        exit(1);
+    }
+    //New texture end
+
+    ID3D11VertexShader* vertex_shader;
+    ID3D11PixelShader* pixel_shader;
     ID3DBlob* vs_blob = nullptr;
     ID3DBlob* ps_blob = nullptr;
     CompileShaders(&vs_blob, &ps_blob, L"../res/Shaders/Shader.hlsl");
     device->CreateVertexShader(vs_blob->GetBufferPointer(), vs_blob->GetBufferSize(), nullptr, &vertex_shader);
     device->CreatePixelShader(ps_blob->GetBufferPointer(), ps_blob->GetBufferSize(), nullptr, &pixel_shader);
 
-    context->VSSetShader(vertex_shader.Get(), nullptr, 0);
-    context->PSSetShader(pixel_shader.Get(), nullptr, 0);
-
-    ComPtr<ID3D11VertexShader> grid_vertex_shader;
-    ComPtr<ID3D11PixelShader> grid_pixel_shader;
+    ID3D11VertexShader* grid_vertex_shader;
+    ID3D11PixelShader* grid_pixel_shader;
     ID3DBlob* gvs_blob = nullptr;
     ID3DBlob* gps_blob = nullptr;
     CompileShaders(&gvs_blob, &gps_blob, L"../res/Shaders/GridShader.hlsl");
     device->CreateVertexShader(gvs_blob->GetBufferPointer(), gvs_blob->GetBufferSize(), nullptr, &grid_vertex_shader);
     device->CreatePixelShader(gps_blob->GetBufferPointer(), gps_blob->GetBufferSize(), nullptr, &grid_pixel_shader);
     
+    ID3D11VertexShader* screen_vertex_shader;
+    ID3D11PixelShader* screen_pixel_shader;
+    ID3DBlob* svs_blob = nullptr;
+    ID3DBlob* sps_blob = nullptr;
+    CompileShaders(&svs_blob, &sps_blob, L"../res/Shaders/ScreenQuad.hlsl");
+    device->CreateVertexShader(svs_blob->GetBufferPointer(), svs_blob->GetBufferSize(), nullptr, &screen_vertex_shader);
+    device->CreatePixelShader(sps_blob->GetBufferPointer(), sps_blob->GetBufferSize(), nullptr, &screen_pixel_shader);
+
     ColorBuffer color_data;
     color_data.color = DirectX::XMFLOAT4(1.0, 0.0, 1.0, 1.0);
 
@@ -352,11 +231,12 @@ int main(int, char**)
 
     SpotlightBuffer spotlight_data;
     spotlight_data.position = DirectX::XMVECTOR({ 15.0f, 15.0f, 15.0f, 1.0f });
-    spotlight_data.direction = DirectX::XMVECTOR({-15.0f, -15.0f, -15.0f, 1.0f});
+    spotlight_data.direction = DirectX::XMVector4Normalize({ -15.0f, -15.0f, -15.0f, 1.0f });
     spotlight_data.diffuse_color = DirectX::XMVECTOR({ 1.0f, 1.0f, 1.0f, 1.0f });
     spotlight_data.specular_color = DirectX::XMVECTOR({ 1.0f, 1.0f, 1.0f, 1.0f });
-    spotlight_data.cut_off = 0.95f;
-    spotlight_data.intensity = 500.0f;
+    spotlight_data.cut_off = 0.91f;
+    spotlight_data.outer_cut_off = 0.82f;
+    spotlight_data.intensity = 800.0f;
    
     ID3D11Buffer* color_constant_buffer;
     D3D11_BUFFER_DESC color_constant_buffer_description = { 0 };
@@ -523,16 +403,13 @@ int main(int, char**)
 #pragma endregion
 
         const float clear_color_with_alpha[4] = {
-            color_data.color.x * 0.15f,
-            color_data.color.y * 0.15f,
-            color_data.color.z * 0.15f,
+            0.65f * 0.15f,
+            0.65f * 0.15f,
+            0.75f * 0.15f,
             1.0f
         };
-        context->ClearRenderTargetView(main_render_target_view, clear_color_with_alpha);
-        context->ClearDepthStencilView(depth_stencil_view, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0.0f);
         
         //======================== Logic
-
         D3D11_MAPPED_SUBRESOURCE mapped_resource;
         if (color_constant_buffer)
         {
@@ -583,25 +460,41 @@ int main(int, char**)
             context->Unmap(spotlight_constant_buffer, 0);
         }
 
-        context->VSSetShader(grid_vertex_shader.Get(), nullptr, 0);
-        context->PSSetShader(grid_pixel_shader.Get(), nullptr, 0);
+        context->OMSetRenderTargets(1, &aux_render_target_view, depth_stencil_view);
+        context->ClearRenderTargetView(aux_render_target_view, clear_color_with_alpha);
+        context->ClearDepthStencilView(depth_stencil_view, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0.0f);
+
+        context->VSSetShader(grid_vertex_shader, nullptr, 0);
+        context->PSSetShader(grid_pixel_shader, nullptr, 0);
         
-        context->IASetVertexBuffers(0, 1, rectangle_vertex_buffer.GetAddressOf(), &stride, &offset);
-        context->IASetIndexBuffer(rectangle_index_buffer.Get(), DXGI_FORMAT_R32_UINT, 0);
+        context->IASetVertexBuffers(0, 1, &rectangle_vertex_buffer, &stride, &offset);
+        context->IASetIndexBuffer(rectangle_index_buffer, DXGI_FORMAT_R32_UINT, 0);
         context->VSSetConstantBuffers(1, 1, &view_proj_constant_buffer);
         context->DrawIndexed(6, 0, 0);
         
-        
-        context->VSSetShader(vertex_shader.Get(), nullptr, 0);
-        context->PSSetShader(pixel_shader.Get(), nullptr, 0);
+        context->VSSetShader(vertex_shader, nullptr, 0);
+        context->PSSetShader(pixel_shader, nullptr, 0);
 
-        context->IASetVertexBuffers(0, 1, triangle_vertex_buffer.GetAddressOf(), &stride, &offset);
-        context->IASetIndexBuffer(triangle_index_buffer.Get(), DXGI_FORMAT_R32_UINT, 0);
+        context->IASetVertexBuffers(0, 1, &triangle_vertex_buffer, &stride, &offset);
+        context->IASetIndexBuffer(triangle_index_buffer, DXGI_FORMAT_R32_UINT, 0);
         context->VSSetConstantBuffers(1, 1, &view_proj_constant_buffer);
         context->DrawIndexed(3, 0, 0);
 
-        //======================== End Logic
+        // Render quad
+        context->OMSetRenderTargets(1, &main_render_target_view, depth_stencil_view);
+        context->ClearRenderTargetView(main_render_target_view, clear_color_with_alpha);
+        context->ClearDepthStencilView(depth_stencil_view, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0.0f);
 
+        context->VSSetShader(screen_vertex_shader, nullptr, 0);
+        context->PSSetShader(screen_pixel_shader, nullptr, 0);
+        
+        context->IASetVertexBuffers(0, 1, &screen_quad_vertex_buffer, &stride, &offset);
+        context->IASetIndexBuffer(screen_quad_index_buffer, DXGI_FORMAT_R32_UINT, 0);
+        context->PSSetShaderResources(0, 1, &aux_shader_resource_view);
+        
+        context->DrawIndexed(6, 0, 0);
+
+        //======================== End Logic
 
 #pragma region IMGUI
 
@@ -616,13 +509,13 @@ int main(int, char**)
             color_data.color = DirectX::XMFLOAT4(color_picker[0], color_picker[1], color_picker[2], color_picker[3]);
         }
 
-        ImGui::SliderFloat("Offset", &grid_data.offset, 0.1f, 1.0f);
+        ImGui::SliderFloat("Offset", &grid_data.offset, 0.1f, 5.0f);
         ImGui::SliderFloat("Width", &grid_data.width, 0.01f, 0.2f);
 
         ImGui::End();
 
         ImGui::Render();
-        //context->OMSetRenderTargets(1, &main_render_target_view, depth_stencil_view);
+        
         ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 
 #pragma endregion
