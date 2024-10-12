@@ -98,16 +98,6 @@ float4 PSMain(PixelInput input) : SV_Target
     }
     
     float4 after_light = (ambient_light + (diffuse * sl_diffuse_color + spec * sl_specular_color) * attenuation * intensity) * color;
-
-    // fog
-
-    float dist = length(world_position.xz);
-
-    float radius = 50.0;
-    float softness = 25.0;
-    float vignette = smoothstep(radius, radius - softness, dist);
-
-    after_light.a -= (1.0 - vignette);
    
     return after_light;
 }

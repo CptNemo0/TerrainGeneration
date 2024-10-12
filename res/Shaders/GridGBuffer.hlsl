@@ -63,6 +63,11 @@ cbuffer SpotlightBuffer : register(b5)
     float sl_padding;
 };
 
+cbuffer BackgroundColorBuffer : register(b6)
+{
+    float4 bgcolor;
+};
+
 PixelInput VSMain(VertexInput input)
 {
     PixelInput output;
@@ -101,56 +106,25 @@ PixelOutput PSMain(PixelInput input)
         const_color += float4(0.3, 0.3, 0.3, 1.0);
     }
     
-    PixelOutput output;
-    output.color = const_color;
-    output.position = input.world_position;
-    output.normal = input.normal * 0.5 + 0.5;
-    return output;
-    
-    /*float4 light_position = sl_position;
-    float4 diffuse_color = sl_diffuse_color;
-    float4 specular_color = sl_specular_color;
-    float intensity = sl_intensity;
-    float shinieness = 600.0;
-    float gamma = 2.2;
-    float inverse_gamma = 1.0 / 2.2;
-    
-    float4 pos_m_light = light_position - input.world_position;
-    float distance2light = length(pos_m_light);
-    float4 light_direction = normalize(pos_m_light);
-    float attenuation = 1.0 / (distance2light * distance2light);
-
-    float diffuse = 0.0;
-    float spec = 0.0;
-    
-    float theta = dot(light_direction, normalize(-sl_direction));
-    
-    if (theta > sl_cut_off)
-    {
-        float4 view_direction = normalize(camera_position - input.world_position);
-        float4 halfway_direction = normalize(light_direction + view_direction);
-    
-        diffuse = max(dot(light_direction, input.normal), 0.0);
-        spec = pow(max(dot(view_direction, halfway_direction), 0.0), shinieness);
-        
-        float epsilon = sl_cut_off - sl_outer_cut_off;
-        float sl_intensity = clamp((theta - sl_outer_cut_off) / epsilon, 0.0, 1.0);
-        
-        diffuse *= sl_intensity;
-
-    }
-
-    float4 after_light = (ambient_light + (diffuse * sl_diffuse_color + spec * sl_specular_color) * attenuation * intensity) * const_color;
-
-    // fog
-
     float dist = length(input.world_position.xz);
 
     float radius = 50.0;
     float softness = 25.0;
     float vignette = smoothstep(radius, radius - softness, dist);
 
-    after_light.a -= (1.0 - vignette);
+    float t = (1.0 - vignette);
+    
+    const_color = lerp(const_color, bgcolor, t);
+    
+    PixelOutput output;
+    output.color = const_color;
+    output.position = input.world_position;
+    output.normal = input.normal * 0.5 + 0.5;
+    
+    
+    
+    
+    
    
-    return after_light;*/
+    return output;
 }

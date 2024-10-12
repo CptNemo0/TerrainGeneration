@@ -310,7 +310,10 @@ int main(int, char**)
     device->CreatePixelShader(lf_blob->GetBufferPointer(), lf_blob->GetBufferSize(), nullptr, &light_pixel_shader);
 
     ColorBuffer color_data;
-    color_data.color = DirectX::XMFLOAT4(1.0, 0.0, 1.0, 1.0);
+    color_data.color = DirectX::XMVECTOR({ 1.0f, 0.0f, 1.0f, 1.0f });
+
+    ColorBuffer background_color_data;
+    background_color_data.color = DirectX::XMVECTOR({ 0.0f, 0.0f, 0.0f, 1.0f });
 
     GridBuffer grid_data;
     grid_data.offset = 1.0f;
@@ -335,7 +338,7 @@ int main(int, char**)
     spotlight_data.specular_color = DirectX::XMVECTOR({ 1.0f, 1.0f, 1.0f, 1.0f });
     spotlight_data.cut_off = 0.91f;
     spotlight_data.outer_cut_off = 0.82f;
-    spotlight_data.intensity = 200.0f;
+    spotlight_data.intensity = 100.0f;
    
     LightSpaceBuffer lightspace_data;
     lightspace_data.view_matrix = DirectX::XMMatrixLookAtLH(spotlight_data.position, DirectX::XMVectorAdd(spotlight_data.position, spotlight_data.direction), up_direction_iv); 
@@ -419,18 +422,19 @@ int main(int, char**)
     device->CreateBuffer(&spotlight_constant_buffer_description, &spotlight_constant_buffer_srd, &spotlight_constant_buffer);
     context->PSSetConstantBuffers(5, 1, &spotlight_constant_buffer);
 
-    ID3D11Buffer* light_space_constant_buffer;
-    D3D11_BUFFER_DESC light_space_constant_buffer_description = { 0 };
-    light_space_constant_buffer_description.ByteWidth = sizeof(LightSpaceBuffer);
-    light_space_constant_buffer_description.Usage = D3D11_USAGE_DYNAMIC;
-    light_space_constant_buffer_description.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-    light_space_constant_buffer_description.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-    D3D11_SUBRESOURCE_DATA light_space_constant_buffer_srd;
-    light_space_constant_buffer_srd.pSysMem = &lightspace_data;
-    light_space_constant_buffer_srd.SysMemPitch = 0;
-    light_space_constant_buffer_srd.SysMemSlicePitch = 0;
-    device->CreateBuffer(&light_space_constant_buffer_description, &light_space_constant_buffer_srd, &light_space_constant_buffer);
-    context->PSSetConstantBuffers(6, 1, &light_space_constant_buffer);
+    ID3D11Buffer* bg_color_constant_buffer;
+    D3D11_BUFFER_DESC bg_color_constant_buffer_description = { 0 };
+    bg_color_constant_buffer_description.ByteWidth = sizeof(ColorBuffer);
+    bg_color_constant_buffer_description.Usage = D3D11_USAGE_DYNAMIC;
+    bg_color_constant_buffer_description.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+    bg_color_constant_buffer_description.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+    D3D11_SUBRESOURCE_DATA bg_color_constant_buffer_srd;
+    bg_color_constant_buffer_srd.pSysMem = &background_color_data;
+    bg_color_constant_buffer_srd.SysMemPitch = 0;
+    bg_color_constant_buffer_srd.SysMemSlicePitch = 0;
+    device->CreateBuffer(&bg_color_constant_buffer_description, &bg_color_constant_buffer_srd, &bg_color_constant_buffer);
+    context->PSSetConstantBuffers(6, 1, &bg_color_constant_buffer);
+
 #pragma endregion
     
     // initialize input layout
@@ -518,13 +522,6 @@ int main(int, char**)
         }
 
 #pragma endregion
-
-        const float clear_color_with_alpha[4] = {
-            0.65f * 0.15f,
-            0.65f * 0.15f,
-            0.75f * 0.15f,
-            1.0f
-        };
         
         //======================== Logic
         D3D11_MAPPED_SUBRESOURCE mapped_resource;
@@ -569,12 +566,12 @@ int main(int, char**)
             context->Unmap(grid_constant_buffer, 0);
         }
 
-        if (spotlight_constant_buffer)
+        if (bg_color_constant_buffer)
         {
-            context->Map(spotlight_constant_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource);
-            SpotlightBuffer* data_ptr = (SpotlightBuffer*)mapped_resource.pData;
-            *data_ptr = spotlight_data;
-            context->Unmap(spotlight_constant_buffer, 0);
+            context->Map(bg_color_constant_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource);
+            ColorBuffer* data_ptr = (ColorBuffer*)mapped_resource.pData;
+            *data_ptr = background_color_data;
+            context->Unmap(bg_color_constant_buffer, 0);
         }
 
 #pragma region Render Depth For Shadow Map
@@ -619,25 +616,18 @@ int main(int, char**)
         }
 #pragma endregion
 
-        //context->OMSetRenderTargets(1, &position_render_target_view, depth_stencil_view);
-        //context->ClearRenderTargetView(position_render_target_view, clear_color_with_alpha);
-        //context->ClearDepthStencilView(depth_stencil_view, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0.0f);
-        //
-        //context->VSSetShader(grid_vertex_shader, nullptr, 0);
-        //context->PSSetShader(grid_pixel_shader, nullptr, 0);
-        //
-        //context->IASetVertexBuffers(0, 1, &rectangle_vertex_buffer, &stride, &offset);
-        //context->IASetIndexBuffer(rectangle_index_buffer, DXGI_FORMAT_R32_UINT, 0);
-        //context->VSSetConstantBuffers(1, 1, &view_proj_constant_buffer);
-        //context->DrawIndexed(6, 0, 0);
-        
-        float black[4];
-        ZeroMemory(black, sizeof(float) * 4);
+        float bgcx = DirectX::XMVectorGetX(background_color_data.color);
+        float bgcy = DirectX::XMVectorGetX(background_color_data.color);
+        float bgcz = DirectX::XMVectorGetX(background_color_data.color);
+        float bgcw = DirectX::XMVectorGetX(background_color_data.color);
+
+        float bgc[4] = { bgcx , bgcy, bgcz, bgcw};
+
         ID3D11RenderTargetView* render_targets[3] = { position_render_target_view, normal_render_target_view, color_render_target_view };
         context->OMSetRenderTargets(3, render_targets, depth_stencil_view);
-        context->ClearRenderTargetView(position_render_target_view, black);
-        context->ClearRenderTargetView(normal_render_target_view, black);
-        context->ClearRenderTargetView(color_render_target_view, black);
+        context->ClearRenderTargetView(position_render_target_view, bgc);
+        context->ClearRenderTargetView(normal_render_target_view, bgc);
+        context->ClearRenderTargetView(color_render_target_view, bgc);
         context->ClearDepthStencilView(depth_stencil_view, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0.0f);
 
         context->VSSetShader(g_grid_vertex_shader, nullptr, 0);
@@ -658,7 +648,7 @@ int main(int, char**)
         
         // Render quad
         context->OMSetRenderTargets(1, &main_render_target_view, depth_stencil_view);
-        context->ClearRenderTargetView(main_render_target_view, clear_color_with_alpha);
+        context->ClearRenderTargetView(main_render_target_view, bgc);
         context->ClearDepthStencilView(depth_stencil_view, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0.0f);
         
         context->VSSetShader(light_vertex_shader, nullptr, 0);
@@ -681,10 +671,10 @@ int main(int, char**)
         ImGui::NewFrame();
 
         ImGui::Begin("Color");
-        float color_picker[4] = { color_data.color.x, color_data.color.y, color_data.color.z, color_data.color.w };
-        if (ImGui::ColorPicker4("Pick a color", color_picker))
+        
+        if (ImGui::ColorPicker4("Pick a color", bgc))
         {
-            color_data.color = DirectX::XMFLOAT4(color_picker[0], color_picker[1], color_picker[2], color_picker[3]);
+            background_color_data.color = DirectX::XMVECTOR({ bgc[0], bgc[1], bgc[2], 1.0f });
         }
 
         ImGui::SliderFloat("Offset", &grid_data.offset, 0.1f, 5.0f);

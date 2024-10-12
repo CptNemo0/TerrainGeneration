@@ -7,7 +7,7 @@
 
 struct ColorBuffer
 {
-	DirectX::XMFLOAT4 color;
+	DirectX::XMVECTOR color;
 };
 
 struct ModelMatrixBuffer

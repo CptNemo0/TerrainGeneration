@@ -26,7 +26,6 @@ cbuffer ColorBuffer : register(b0)
     float4 color;
 };
 
-
 cbuffer ViewProjBuffer : register(b1)
 {
     float4x4 view_matrix;
