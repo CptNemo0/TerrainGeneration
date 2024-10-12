@@ -29,11 +29,6 @@ struct GridBuffer
 	float padding1, padding2;
 };
 
-struct DirectionalLight
-{
-	DirectX::XMVECTOR direction;
-};
-
 struct CameraBuffer
 {
 	DirectX::XMVECTOR camera_position;
@@ -49,6 +44,12 @@ struct SpotlightBuffer
 	float outer_cut_off;
 	float intensity;
 	float padding;
+};
+
+struct LightSpaceBuffer
+{
+	DirectX::XMMATRIX view_matrix;
+	DirectX::XMMATRIX projection_matrix;
 };
 
 #endif // !CONSTANT_BUFFER_STRUCTS_H

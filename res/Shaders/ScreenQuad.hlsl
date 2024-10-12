@@ -36,8 +36,7 @@ Texture2D screen_texture : register(t0);
 
 float4 PSMain(PixelInput input) : SV_TARGET
 {   
-    float3 c = screen_texture.Sample(texture_sampler, input.uv).rgb;   
-    float4 return_value = float4(c.r, c.g, c.b, 1.0);
-    return return_value;
-    //float4(input.uv.x, input.uv.y, 0.0, 1.0);
+    float3 color = screen_texture.Sample(texture_sampler, input.uv).rgb;   
+
+    return float4(color, 1.0);
 }

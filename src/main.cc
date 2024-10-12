@@ -152,39 +152,106 @@ int main(int, char**)
     D3D11_SUBRESOURCE_DATA screen_quad_index_srd = { screen_quad_indices, 0, 0 };
     device->CreateBuffer(&screen_quad_index_buffer_description, &screen_quad_index_srd, &screen_quad_index_buffer);
     // Screen Quad Buffers End
+#pragma endregion
 
-    // New texture
-    ID3D11Texture2D* aux_texture;
-    ID3D11RenderTargetView* aux_render_target_view;
-    ID3D11ShaderResourceView* aux_shader_resource_view;
+#pragma region Textures
+
     D3D11_TEXTURE2D_DESC texture_description = {};
-    texture_description.Width = WIDTH;  
+    texture_description.Width = WIDTH;
     texture_description.Height = HEIGHT;
     texture_description.MipLevels = 1;
     texture_description.ArraySize = 1;
-    texture_description.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    texture_description.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
     texture_description.SampleDesc.Count = 1;
     texture_description.Usage = D3D11_USAGE_DEFAULT;
     texture_description.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
 
-    if (device->CreateTexture2D(&texture_description, nullptr, &aux_texture))
+    ID3D11Texture2D* position_texture;
+    ID3D11RenderTargetView* position_render_target_view;
+    ID3D11ShaderResourceView* position_shader_resource_view;
+    if (device->CreateTexture2D(&texture_description, nullptr, &position_texture))
     {
-        std::cout << "Creating aux texture failed\n";
+        std::cout << "Creating position texture failed\n";
         exit(1);
     }
 
-    if (device->CreateShaderResourceView(aux_texture, nullptr, &aux_shader_resource_view))
+    if (device->CreateShaderResourceView(position_texture, nullptr, &position_shader_resource_view))
     {
-        std::cout << "Creating aux_shader_resource_view failed\n";
+        std::cout << "Creating position_shader_resource_view failed\n";
         exit(1);
     }
 
-    if (device->CreateRenderTargetView(aux_texture, nullptr, &aux_render_target_view))
+    if (device->CreateRenderTargetView(position_texture, nullptr, &position_render_target_view))
     {
-        std::cout << "Creating aux_shader_resource_view failed\n";
+        std::cout << "Creating position_shader_resource_view failed\n";
         exit(1);
     }
-    //New texture end
+
+    ID3D11Texture2D* normal_texture;
+    ID3D11RenderTargetView* normal_render_target_view;
+    ID3D11ShaderResourceView* normal_shader_resource_view;
+    if (device->CreateTexture2D(&texture_description, nullptr, &normal_texture))
+    {
+        std::cout << "Creating normal texture failed\n";
+        exit(1);
+    }
+
+    if (device->CreateShaderResourceView(normal_texture, nullptr, &normal_shader_resource_view))
+    {
+        std::cout << "Creating normal_shader_resource_view failed\n";
+        exit(1);
+    }
+
+    if (device->CreateRenderTargetView(normal_texture, nullptr, &normal_render_target_view))
+    {
+        std::cout << "Creating normal_shader_resource_view failed\n";
+        exit(1);
+    }
+
+    ID3D11Texture2D* color_texture;
+    ID3D11RenderTargetView* color_render_target_view;
+    ID3D11ShaderResourceView* color_shader_resource_view;
+    if (device->CreateTexture2D(&texture_description, nullptr, &color_texture))
+    {
+        std::cout << "Creating color texture failed\n";
+        exit(1);
+    }
+
+    if (device->CreateShaderResourceView(color_texture, nullptr, &color_shader_resource_view))
+    {
+        std::cout << "Creating color_shader_resource_view failed\n";
+        exit(1);
+    }
+
+    if (device->CreateRenderTargetView(color_texture, nullptr, &color_render_target_view))
+    {
+        std::cout << "Creating color_shader_resource_view failed\n";
+        exit(1);
+    }
+
+    ID3D11Texture2D* depth_texture;
+    ID3D11RenderTargetView* depth_render_target_view;
+    ID3D11ShaderResourceView* depth_shader_resource_view;
+    if (device->CreateTexture2D(&texture_description, nullptr, &depth_texture))
+    {
+        std::cout << "Creating depth texture failed\n";
+        exit(1);
+    }
+
+    if (device->CreateShaderResourceView(depth_texture, nullptr, &depth_shader_resource_view))
+    {
+        std::cout << "Creating depth_shader_resource_view failed\n";
+        exit(1);
+    }
+
+    if (device->CreateRenderTargetView(depth_texture, nullptr, &depth_render_target_view))
+    {
+        std::cout << "Creating depth_shader_resource_view failed\n";
+        exit(1);
+    }    
+#pragma endregion
+
+#pragma region Shaders
 
     ID3D11VertexShader* vertex_shader;
     ID3D11PixelShader* pixel_shader;
@@ -201,7 +268,7 @@ int main(int, char**)
     CompileShaders(&gvs_blob, &gps_blob, L"../res/Shaders/GridShader.hlsl");
     device->CreateVertexShader(gvs_blob->GetBufferPointer(), gvs_blob->GetBufferSize(), nullptr, &grid_vertex_shader);
     device->CreatePixelShader(gps_blob->GetBufferPointer(), gps_blob->GetBufferSize(), nullptr, &grid_pixel_shader);
-    
+
     ID3D11VertexShader* screen_vertex_shader;
     ID3D11PixelShader* screen_pixel_shader;
     ID3DBlob* svs_blob = nullptr;
@@ -209,6 +276,38 @@ int main(int, char**)
     CompileShaders(&svs_blob, &sps_blob, L"../res/Shaders/ScreenQuad.hlsl");
     device->CreateVertexShader(svs_blob->GetBufferPointer(), svs_blob->GetBufferSize(), nullptr, &screen_vertex_shader);
     device->CreatePixelShader(sps_blob->GetBufferPointer(), sps_blob->GetBufferSize(), nullptr, &screen_pixel_shader);
+
+    ID3D11VertexShader* sm_vertex_shader;
+    ID3D11PixelShader* sm_pixel_shader;
+    ID3DBlob* smvs_blob = nullptr;
+    ID3DBlob* smps_blob = nullptr;
+    CompileShaders(&smvs_blob, &smps_blob, L"../res/Shaders/ShadowMap.hlsl");
+    device->CreateVertexShader(smvs_blob->GetBufferPointer(), smvs_blob->GetBufferSize(), nullptr, &sm_vertex_shader);
+    device->CreatePixelShader(smps_blob->GetBufferPointer(), smps_blob->GetBufferSize(), nullptr, &sm_pixel_shader);
+
+    ID3D11VertexShader* g_vertex_shader;
+    ID3D11PixelShader* g_pixel_shader;
+    ID3DBlob* gv_blob = nullptr;
+    ID3DBlob* gp_blob = nullptr;
+    CompileShaders(&gv_blob, &gp_blob, L"../res/Shaders/GBuffer.hlsl");
+    device->CreateVertexShader(gv_blob->GetBufferPointer(), gv_blob->GetBufferSize(), nullptr, &g_vertex_shader);
+    device->CreatePixelShader(gp_blob->GetBufferPointer(), gp_blob->GetBufferSize(), nullptr, &g_pixel_shader);
+
+    ID3D11VertexShader* g_grid_vertex_shader;
+    ID3D11PixelShader* g_grid_pixel_shader;
+    ID3DBlob* ggv_blob = nullptr;
+    ID3DBlob* ggp_blob = nullptr;
+    CompileShaders(&ggv_blob, &ggp_blob, L"../res/Shaders/GridGBuffer.hlsl");
+    device->CreateVertexShader(ggv_blob->GetBufferPointer(), ggv_blob->GetBufferSize(), nullptr, &g_grid_vertex_shader);
+    device->CreatePixelShader(ggp_blob->GetBufferPointer(), ggp_blob->GetBufferSize(), nullptr, &g_grid_pixel_shader);
+
+    ID3D11VertexShader* light_vertex_shader;
+    ID3D11PixelShader* light_pixel_shader;
+    ID3DBlob* lv_blob = nullptr;
+    ID3DBlob* lf_blob = nullptr;
+    CompileShaders(&lv_blob, &lf_blob, L"../res/Shaders/Lighting.hlsl");
+    device->CreateVertexShader(lv_blob->GetBufferPointer(), lv_blob->GetBufferSize(), nullptr, &light_vertex_shader);
+    device->CreatePixelShader(lf_blob->GetBufferPointer(), lf_blob->GetBufferSize(), nullptr, &light_pixel_shader);
 
     ColorBuffer color_data;
     color_data.color = DirectX::XMFLOAT4(1.0, 0.0, 1.0, 1.0);
@@ -230,14 +329,18 @@ int main(int, char**)
     mm_data.ti_model_matrix = DirectX::XMMatrixTranspose(DirectX::XMMatrixInverse(&matrix_determinant, mm_data.model_matrix));
 
     SpotlightBuffer spotlight_data;
-    spotlight_data.position = DirectX::XMVECTOR({ 15.0f, 15.0f, 15.0f, 1.0f });
-    spotlight_data.direction = DirectX::XMVector4Normalize({ -15.0f, -15.0f, -15.0f, 1.0f });
+    spotlight_data.position = DirectX::XMVECTOR({ 5.0f, 5.0f, 5.0f, 1.0f });
+    spotlight_data.direction = DirectX::XMVector4Normalize({ -5.0f, -5.0f, -5.0f, 1.0f });
     spotlight_data.diffuse_color = DirectX::XMVECTOR({ 1.0f, 1.0f, 1.0f, 1.0f });
     spotlight_data.specular_color = DirectX::XMVECTOR({ 1.0f, 1.0f, 1.0f, 1.0f });
     spotlight_data.cut_off = 0.91f;
     spotlight_data.outer_cut_off = 0.82f;
-    spotlight_data.intensity = 800.0f;
+    spotlight_data.intensity = 200.0f;
    
+    LightSpaceBuffer lightspace_data;
+    lightspace_data.view_matrix = DirectX::XMMatrixLookAtLH(spotlight_data.position, DirectX::XMVectorAdd(spotlight_data.position, spotlight_data.direction), up_direction_iv); 
+    lightspace_data.projection_matrix = DirectX::XMMatrixPerspectiveFovLH(spotlight_data.cut_off * 2.0f, 16.0f / 9.0f, 0.1f, 1000.0f);
+
     ID3D11Buffer* color_constant_buffer;
     D3D11_BUFFER_DESC color_constant_buffer_description = { 0 };
     color_constant_buffer_description.ByteWidth = sizeof(ColorBuffer);
@@ -310,12 +413,26 @@ int main(int, char**)
     spotlight_constant_buffer_description.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
     spotlight_constant_buffer_description.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
     D3D11_SUBRESOURCE_DATA spotlight_constant_buffer_srd;
-    spotlight_constant_buffer_srd.pSysMem = &grid_data;
+    spotlight_constant_buffer_srd.pSysMem = &spotlight_data;
     spotlight_constant_buffer_srd.SysMemPitch = 0;
     spotlight_constant_buffer_srd.SysMemSlicePitch = 0;
     device->CreateBuffer(&spotlight_constant_buffer_description, &spotlight_constant_buffer_srd, &spotlight_constant_buffer);
     context->PSSetConstantBuffers(5, 1, &spotlight_constant_buffer);
 
+    ID3D11Buffer* light_space_constant_buffer;
+    D3D11_BUFFER_DESC light_space_constant_buffer_description = { 0 };
+    light_space_constant_buffer_description.ByteWidth = sizeof(LightSpaceBuffer);
+    light_space_constant_buffer_description.Usage = D3D11_USAGE_DYNAMIC;
+    light_space_constant_buffer_description.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+    light_space_constant_buffer_description.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+    D3D11_SUBRESOURCE_DATA light_space_constant_buffer_srd;
+    light_space_constant_buffer_srd.pSysMem = &lightspace_data;
+    light_space_constant_buffer_srd.SysMemPitch = 0;
+    light_space_constant_buffer_srd.SysMemSlicePitch = 0;
+    device->CreateBuffer(&light_space_constant_buffer_description, &light_space_constant_buffer_srd, &light_space_constant_buffer);
+    context->PSSetConstantBuffers(6, 1, &light_space_constant_buffer);
+#pragma endregion
+    
     // initialize input layout
     D3D11_INPUT_ELEMENT_DESC input_element_description[] =
     {
@@ -329,7 +446,7 @@ int main(int, char**)
     uint32_t stride = sizeof(float) * 6;
     uint32_t offset = 0;
     
-#pragma endregion
+
  
     // Main loop
     bool done = false;
@@ -460,37 +577,98 @@ int main(int, char**)
             context->Unmap(spotlight_constant_buffer, 0);
         }
 
-        context->OMSetRenderTargets(1, &aux_render_target_view, depth_stencil_view);
-        context->ClearRenderTargetView(aux_render_target_view, clear_color_with_alpha);
+#pragma region Render Depth For Shadow Map
+        {
+            float black[4];
+            ZeroMemory(black, sizeof(float) * 4);
+            context->OMSetRenderTargets(1, &depth_render_target_view, depth_stencil_view);
+            context->ClearRenderTargetView(main_render_target_view, black);
+            context->ClearDepthStencilView(depth_stencil_view, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0.0f);
+            
+            context->VSSetShader(sm_vertex_shader, nullptr, 0);
+            context->PSSetShader(sm_pixel_shader, nullptr, 0);
+
+            if (view_proj_constant_buffer)
+            {
+                ViewProjBuffer lightspace_data;
+                lightspace_data.view_matrix = DirectX::XMMatrixLookAtLH(spotlight_data.position, DirectX::XMVectorAdd(spotlight_data.position, spotlight_data.direction), up_direction_iv);
+                lightspace_data.projection_matrix = DirectX::XMMatrixPerspectiveFovLH(spotlight_data.cut_off * 2.0f, 16.0f / 9.0f, 0.1f, 1000.0f);
+                context->Map(view_proj_constant_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource);
+                ViewProjBuffer* data_ptr = (ViewProjBuffer*)mapped_resource.pData;
+                *data_ptr = lightspace_data;
+                context->Unmap(view_proj_constant_buffer, 0);
+            }
+
+            context->IASetVertexBuffers(0, 1, &rectangle_vertex_buffer, &stride, &offset);
+            context->IASetIndexBuffer(rectangle_index_buffer, DXGI_FORMAT_R32_UINT, 0);
+            context->VSSetConstantBuffers(1, 1, &view_proj_constant_buffer);
+            context->DrawIndexed(6, 0, 0);
+
+            context->IASetVertexBuffers(0, 1, &triangle_vertex_buffer, &stride, &offset);
+            context->IASetIndexBuffer(triangle_index_buffer, DXGI_FORMAT_R32_UINT, 0);
+            context->VSSetConstantBuffers(1, 1, &view_proj_constant_buffer);
+            context->DrawIndexed(3, 0, 0);
+
+            if (view_proj_constant_buffer)
+            {
+                context->Map(view_proj_constant_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource);
+                ViewProjBuffer* data_ptr = (ViewProjBuffer*)mapped_resource.pData;
+                *data_ptr = view_proj_data;
+                context->Unmap(view_proj_constant_buffer, 0);
+            }
+        }
+#pragma endregion
+
+        //context->OMSetRenderTargets(1, &position_render_target_view, depth_stencil_view);
+        //context->ClearRenderTargetView(position_render_target_view, clear_color_with_alpha);
+        //context->ClearDepthStencilView(depth_stencil_view, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0.0f);
+        //
+        //context->VSSetShader(grid_vertex_shader, nullptr, 0);
+        //context->PSSetShader(grid_pixel_shader, nullptr, 0);
+        //
+        //context->IASetVertexBuffers(0, 1, &rectangle_vertex_buffer, &stride, &offset);
+        //context->IASetIndexBuffer(rectangle_index_buffer, DXGI_FORMAT_R32_UINT, 0);
+        //context->VSSetConstantBuffers(1, 1, &view_proj_constant_buffer);
+        //context->DrawIndexed(6, 0, 0);
+        
+        float black[4];
+        ZeroMemory(black, sizeof(float) * 4);
+        ID3D11RenderTargetView* render_targets[3] = { position_render_target_view, normal_render_target_view, color_render_target_view };
+        context->OMSetRenderTargets(3, render_targets, depth_stencil_view);
+        context->ClearRenderTargetView(position_render_target_view, black);
+        context->ClearRenderTargetView(normal_render_target_view, black);
+        context->ClearRenderTargetView(color_render_target_view, black);
         context->ClearDepthStencilView(depth_stencil_view, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0.0f);
 
-        context->VSSetShader(grid_vertex_shader, nullptr, 0);
-        context->PSSetShader(grid_pixel_shader, nullptr, 0);
+        context->VSSetShader(g_grid_vertex_shader, nullptr, 0);
+        context->PSSetShader(g_grid_pixel_shader, nullptr, 0);
         
         context->IASetVertexBuffers(0, 1, &rectangle_vertex_buffer, &stride, &offset);
         context->IASetIndexBuffer(rectangle_index_buffer, DXGI_FORMAT_R32_UINT, 0);
         context->VSSetConstantBuffers(1, 1, &view_proj_constant_buffer);
         context->DrawIndexed(6, 0, 0);
-        
-        context->VSSetShader(vertex_shader, nullptr, 0);
-        context->PSSetShader(pixel_shader, nullptr, 0);
+
+        context->VSSetShader(g_vertex_shader, nullptr, 0);
+        context->PSSetShader(g_pixel_shader, nullptr, 0);
 
         context->IASetVertexBuffers(0, 1, &triangle_vertex_buffer, &stride, &offset);
         context->IASetIndexBuffer(triangle_index_buffer, DXGI_FORMAT_R32_UINT, 0);
         context->VSSetConstantBuffers(1, 1, &view_proj_constant_buffer);
         context->DrawIndexed(3, 0, 0);
-
+        
         // Render quad
         context->OMSetRenderTargets(1, &main_render_target_view, depth_stencil_view);
         context->ClearRenderTargetView(main_render_target_view, clear_color_with_alpha);
         context->ClearDepthStencilView(depth_stencil_view, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0.0f);
-
-        context->VSSetShader(screen_vertex_shader, nullptr, 0);
-        context->PSSetShader(screen_pixel_shader, nullptr, 0);
+        
+        context->VSSetShader(light_vertex_shader, nullptr, 0);
+        context->PSSetShader(light_pixel_shader, nullptr, 0);
         
         context->IASetVertexBuffers(0, 1, &screen_quad_vertex_buffer, &stride, &offset);
         context->IASetIndexBuffer(screen_quad_index_buffer, DXGI_FORMAT_R32_UINT, 0);
-        context->PSSetShaderResources(0, 1, &aux_shader_resource_view);
+        context->PSSetShaderResources(0, 1, &position_shader_resource_view);
+        context->PSSetShaderResources(1, 1, &normal_shader_resource_view);
+        context->PSSetShaderResources(2, 1, &color_shader_resource_view);
         
         context->DrawIndexed(6, 0, 0);
 
