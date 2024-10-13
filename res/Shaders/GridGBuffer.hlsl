@@ -100,8 +100,10 @@ PixelOutput PSMain(PixelInput input)
 {
     float4 const_color = float4(0.65, 0.65, 0.75, 1.0);
     
-    if (fmod(abs(input.world_position.x) + 0.5 * width, offset) <= width
-    || fmod(abs(input.world_position.z) + 0.5 * width, offset) <= width)
+    if (fmod(abs(input.world_position.x) + 0.5 * width, 2.0 * offset) <= width
+    || fmod(abs(input.world_position.z) + 0.5 * width, 2.0 * offset) <= width
+    || fmod(abs(input.world_position.x) + 0.125 * width, offset) <= 0.25 * width
+    || fmod(abs(input.world_position.z) + 0.125 * width, offset) <= 0.25 * width)
     {
         const_color += float4(0.2, 0.2, 0.2, 1.0);
     }
