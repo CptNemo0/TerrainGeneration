@@ -12,6 +12,11 @@ struct PixelInput
     float2 uv : TEXCOORD;
 };
 
+cbuffer ViewProjBuffer : register(b1)
+{
+    float4x4 view_matrix;
+    float4x4 projection_matrix;
+};
 
 cbuffer CameraBuffer : register(b2)
 {
@@ -42,7 +47,7 @@ PixelInput VSMain(VertexInput input)
     float4 uv = p;
   
     output.uv = uv;
-    
+
     return output;
 }
 
@@ -56,6 +61,26 @@ SamplerState texture_sampler
 Texture2D position_texture : register(t0);
 Texture2D normal_texture : register(t1);
 Texture2D color_texture : register(t2);
+Texture2D shadow_texture : register(t3);
+Texture2D lightspace_position_texture : register(t4);
+
+float CalculateVisibility(float4 lightspace_position)
+{
+    float4 p = (lightspace_position + 1.0) * 0.5;
+    p.y = 1.0 - p.y;
+    float4 shadow_uv = p;
+
+    float shadow_depth = shadow_texture.Sample(texture_sampler, shadow_uv.xy).r;
+
+    float bias = 0.005;
+
+    if (shadow_uv.z - bias > shadow_depth)
+    {
+        return 0.5;
+    }
+
+    return 1.0;
+}
 
 float4 PSMain(PixelInput input) : SV_Target
 {
@@ -63,12 +88,13 @@ float4 PSMain(PixelInput input) : SV_Target
     float4 world_position = float4(position_texture.Sample(texture_sampler, input.uv).rgb, 1.0);
     float4 normal = float4(normal_texture.Sample(texture_sampler, input.uv).rgb * 2.0 - 1.0, 1.0);
     float4 color = float4(color_texture.Sample(texture_sampler, input.uv).rgb, 1.0);
+    float4 shadow = float4(shadow_texture.Sample(texture_sampler, input.uv).rgb, 1.0);
     
     float4 light_position = sl_position;
     float4 diffuse_color = sl_diffuse_color;
     float4 specular_color = sl_specular_color;
     float intensity = sl_intensity;
-    float shinieness = 600.0;
+    float shinieness = 500.0;
     float gamma = 2.2;
     float inverse_gamma = 1.0 / 2.2;
     
@@ -97,7 +123,22 @@ float4 PSMain(PixelInput input) : SV_Target
 
     }
     
-    float4 after_light = (ambient_light + (diffuse * sl_diffuse_color + spec * sl_specular_color) * attenuation * intensity) * color;
-   
+    float4x4 light_space_matrix = mul(projection_matrix, view_matrix);
+    float4 lightspace_position = mul(light_space_matrix, world_position);
+    
+    float4 p = (lightspace_position + 1.0) * 0.5;
+    p.y = 1.0 - p.y;
+    float4 shadow_uv = p;
+
+    float shadow_depth = shadow_texture.Sample(texture_sampler, shadow_uv.xy).r;
+
+    float visibility = 1.0;
+    float bias = 0.005;
+    if (shadow_uv.z - 0.469 > shadow_depth)
+    {
+        visibility = 0.1;
+    }
+    
+    float4 after_light = (ambient_light + visibility * (diffuse * sl_diffuse_color) * attenuation * intensity) * color;
     return after_light;
 }

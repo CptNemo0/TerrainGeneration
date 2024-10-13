@@ -156,7 +156,7 @@ int main(int, char**)
 
 #pragma region Textures
 
-    D3D11_TEXTURE2D_DESC texture_description = {};
+    D3D11_TEXTURE2D_DESC texture_description = {0};
     texture_description.Width = WIDTH;
     texture_description.Height = HEIGHT;
     texture_description.MipLevels = 1;
@@ -228,6 +228,37 @@ int main(int, char**)
         std::cout << "Creating color_shader_resource_view failed\n";
         exit(1);
     }
+
+    ID3D11Texture2D* lightspace_position_texture;
+    ID3D11RenderTargetView* lightspace_position_render_target_view;
+    ID3D11ShaderResourceView* lightspace_position_shader_resource_view;
+    if (device->CreateTexture2D(&texture_description, nullptr, &lightspace_position_texture))
+    {
+        std::cout << "Creating lightspace_position texture failed\n";
+        exit(1);
+    }
+
+    if (device->CreateShaderResourceView(lightspace_position_texture, nullptr, &lightspace_position_shader_resource_view))
+    {
+        std::cout << "Creating lightspace_position_shader_resource_view failed\n";
+        exit(1);
+    }
+
+    if (device->CreateRenderTargetView(lightspace_position_texture, nullptr, &lightspace_position_render_target_view))
+    {
+        std::cout << "Creating lightspace_position_shader_resource_view failed\n";
+        exit(1);
+    }
+
+    texture_description = {0};
+    texture_description.Width = WIDTH;
+    texture_description.Height = HEIGHT;
+    texture_description.MipLevels = 1;
+    texture_description.ArraySize = 1;
+    texture_description.Format = DXGI_FORMAT_R32_FLOAT;
+    texture_description.SampleDesc.Count = 1;
+    texture_description.Usage = D3D11_USAGE_DEFAULT;
+    texture_description.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
 
     ID3D11Texture2D* depth_texture;
     ID3D11RenderTargetView* depth_render_target_view;
@@ -332,17 +363,18 @@ int main(int, char**)
     mm_data.ti_model_matrix = DirectX::XMMatrixTranspose(DirectX::XMMatrixInverse(&matrix_determinant, mm_data.model_matrix));
 
     SpotlightBuffer spotlight_data;
-    spotlight_data.position = DirectX::XMVECTOR({ 5.0f, 5.0f, 5.0f, 1.0f });
-    spotlight_data.direction = DirectX::XMVector4Normalize({ -5.0f, -5.0f, -5.0f, 1.0f });
+    spotlight_data.position = DirectX::XMVECTOR({ 5.0f,5.0f, 5.0f, 1.0f });
+    spotlight_data.direction = DirectX::XMVector4Normalize({ -3.0f, -5.0f, -3.0f, 1.0f });
     spotlight_data.diffuse_color = DirectX::XMVECTOR({ 1.0f, 1.0f, 1.0f, 1.0f });
     spotlight_data.specular_color = DirectX::XMVECTOR({ 1.0f, 1.0f, 1.0f, 1.0f });
     spotlight_data.cut_off = 0.91f;
     spotlight_data.outer_cut_off = 0.82f;
-    spotlight_data.intensity = 200.0f;
+    spotlight_data.intensity = 150.0f;
    
     ViewProjBuffer lightspace_data;
     lightspace_data.view_matrix = DirectX::XMMatrixLookAtLH(spotlight_data.position, DirectX::XMVectorAdd(spotlight_data.position, spotlight_data.direction), up_direction_iv); 
-    lightspace_data.projection_matrix = DirectX::XMMatrixPerspectiveFovLH(spotlight_data.cut_off * 2.0f, 16.0f / 9.0f, 0.1f, 1000.0f);
+    //lightspace_data.projection_matrix = DirectX::XMMatrixPerspectiveFovLH(spotlight_data.cut_off * 2.0f, 16.0f / 9.0f, 0.1f, 1000.0f);
+    lightspace_data.projection_matrix = DirectX::XMMatrixOrthographicOffCenterLH(-8.0f, 8.0f, -4.5f, 4.5f, 0.1f, 100.0f);
 
     ID3D11Buffer* color_constant_buffer;
     D3D11_BUFFER_DESC color_constant_buffer_description = { 0 };
@@ -369,6 +401,7 @@ int main(int, char**)
     view_proj_constant_buffer_srd.SysMemSlicePitch = 0;
     device->CreateBuffer(&view_proj_constant_buffer_description, &view_proj_constant_buffer_srd, &view_proj_constant_buffer);
     context->VSSetConstantBuffers(1, 1, &view_proj_constant_buffer);
+    context->PSSetConstantBuffers(1, 1, &view_proj_constant_buffer);
 
     ID3D11Buffer* camera_constant_buffer;
     D3D11_BUFFER_DESC camera_constant_buffer_description = { 0 };
@@ -382,6 +415,7 @@ int main(int, char**)
     camera_constant_buffer_srd.SysMemSlicePitch = 0;
     device->CreateBuffer(&camera_constant_buffer_description, &camera_constant_buffer_srd, &camera_constant_buffer);
     context->VSSetConstantBuffers(2, 1, &camera_constant_buffer);
+    context->PSSetConstantBuffers(2, 1, &camera_constant_buffer);
 
     ID3D11Buffer* mm_constant_buffer;
     D3D11_BUFFER_DESC mm_constant_buffer_description = { 0 };
@@ -577,9 +611,13 @@ int main(int, char**)
 #pragma region Render Depth For Shadow Map
         {
             float white[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
-            context->OMSetRenderTargets(1, &depth_render_target_view, depth_stencil_view);
+            ID3D11RenderTargetView* render_targets[2] = { depth_render_target_view, lightspace_position_render_target_view};
             context->ClearRenderTargetView(depth_render_target_view, white);
+            context->ClearRenderTargetView(lightspace_position_render_target_view, white);
             context->ClearDepthStencilView(depth_stencil_view, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0.0f);
+            context->OMSetRenderTargets(2, render_targets, depth_stencil_view);
+            
+            
             
             context->VSSetShader(sm_vertex_shader, nullptr, 0);
             context->PSSetShader(sm_pixel_shader, nullptr, 0);
@@ -660,8 +698,11 @@ int main(int, char**)
         
         context->IASetVertexBuffers(0, 1, &screen_quad_vertex_buffer, &stride, &offset);
         context->IASetIndexBuffer(screen_quad_index_buffer, DXGI_FORMAT_R32_UINT, 0);
-        ID3D11ShaderResourceView* srvs[4] = { position_shader_resource_view, normal_shader_resource_view, color_shader_resource_view, depth_shader_resource_view };
-        context->PSSetShaderResources(0, 4, srvs);
+        context->PSSetShaderResources(0, 1, &position_shader_resource_view);
+        context->PSSetShaderResources(1, 1, &normal_shader_resource_view);
+        context->PSSetShaderResources(2, 1, &color_shader_resource_view);
+        context->PSSetShaderResources(3, 1, &depth_shader_resource_view);
+        context->PSSetShaderResources(4, 1, &lightspace_position_shader_resource_view);
 
         context->DrawIndexed(6, 0, 0);
 

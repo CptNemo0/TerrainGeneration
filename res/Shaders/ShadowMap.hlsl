@@ -9,15 +9,18 @@ struct VertexInput
 struct PixelInput
 {
     float4 projected_position : SV_POSITION;
-    
-    
+};
+
+struct PixelOutput
+{
+    float4  depth: SV_Target0;
+    float4 position : SV_Target1;
 };
 
 cbuffer ColorBuffer : register(b0)
 {
     float4 color;
 };
-
 
 cbuffer ViewProjBuffer : register(b1)
 {
@@ -30,7 +33,7 @@ cbuffer CameraBuffer : register(b2)
     float4 camera_position;
 };
 
-cbuffer CameraBuffer : register(b3)
+cbuffer ModelMatrixBuffer : register(b3)
 {
     float4x4 model_matrix;
     float4x4 ti_model_matrix;
@@ -58,19 +61,16 @@ cbuffer SpotlightBuffer : register(b5)
 PixelInput VSMain(VertexInput input)
 {
     PixelInput output;
-
     float4 world_position = mul(model_matrix, input.position);
-    float4 view_position = mul(view_matrix, world_position);
-    float4 proj_position = mul(projection_matrix, view_position);
-
-    output.projected_position = proj_position;
+    float4x4 light_space_matrix = mul(projection_matrix, view_matrix);
+    output.projected_position = mul(light_space_matrix, world_position);
     return output;
 }
 
-float4 PSMain(PixelInput input) : SV_TARGET
+PixelOutput PSMain(PixelInput input) : SV_TARGET
 {
-    float z = input.projected_position.z / input.projected_position.w;
-    z = clamp(z, 0.0, 1.0);
-    z = 1 - z;
-    return float4(z, z, z, 1.0);
+    PixelOutput output;
+    output.depth    = float4(input.projected_position.z, input.projected_position.z, input.projected_position.z, 1.0);
+    output.position = input.projected_position;
+    return output;
 }
