@@ -89,12 +89,6 @@ float4 PSMain(PixelInput input) : SV_TARGET
     const float4 const_color = float4(0.65, 0.65, 0.75, 1.0);
     float4 ambient_light = float4(0.2, 0.2, 0.2, 1.0);
 
-    if (fmod(abs(input.world_position.x) + 0.5 * width, offset) <= width
-    || fmod(abs(input.world_position.z) + 0.5 * width, offset) <= width) 
-    {
-        ambient_light = float4(0.3, 0.3, 0.3, 1.0);
-    }
-
     float4 light_position = sl_position;
     float4 diffuse_color = sl_diffuse_color;
     float4 specular_color = sl_specular_color;

@@ -22,6 +22,8 @@ int main(int, char**)
 {
 #pragma region Initialization
 
+    ULONGLONG start_time = GetTickCount64();
+
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO(); (void)io;
@@ -376,8 +378,9 @@ int main(int, char**)
     background_color_data.color = DirectX::XMVECTOR({ 0.0f, 0.0f, 0.0f, 1.0f });
 
     GridBuffer grid_data;
-    grid_data.offset = 1.0f;
-    grid_data.width = 0.05f;
+    grid_data.offset = 2.0f;
+    grid_data.width = 0.5f;
+    grid_data.time = 0.0f;
 
     ViewProjBuffer view_proj_data;
     view_proj_data.view_matrix = view_matrix;
@@ -585,6 +588,11 @@ int main(int, char**)
         }
 
 #pragma endregion
+
+        ULONGLONG current_time = GetTickCount64();
+        float t = (current_time - start_time) * 0.001f;
+
+        grid_data.time = t;
         
         //======================== Logic
         D3D11_MAPPED_SUBRESOURCE mapped_resource;
@@ -635,6 +643,14 @@ int main(int, char**)
             ColorBuffer* data_ptr = (ColorBuffer*)mapped_resource.pData;
             *data_ptr = background_color_data;
             context->Unmap(bg_color_constant_buffer, 0);
+        }
+
+        if (spotlight_constant_buffer)
+        {
+            context->Map(spotlight_constant_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource);
+            SpotlightBuffer* data_ptr = (SpotlightBuffer*)mapped_resource.pData;
+            *data_ptr = spotlight_data;
+            context->Unmap(spotlight_constant_buffer, 0);
         }
 
 #pragma region Render Depth For Shadow Map
@@ -767,6 +783,17 @@ int main(int, char**)
 
         ImGui::SliderFloat("Offset", &grid_data.offset, 0.1f, 5.0f);
         ImGui::SliderFloat("Width", &grid_data.width, 0.01f, 0.2f);
+
+        float pos[3] = {
+            DirectX::XMVectorGetByIndex(spotlight_data.direction, 0),
+            DirectX::XMVectorGetByIndex(spotlight_data.direction, 1),
+            DirectX::XMVectorGetByIndex(spotlight_data.direction, 2)
+        };
+        if (ImGui::DragFloat3("Spotlight", pos, 0.1f))
+        {
+            spotlight_data.direction = DirectX::XMVectorSet(pos[0], pos[1], pos[2], 1.0f);
+            lightspace_data.view_matrix = DirectX::XMMatrixLookAtLH(spotlight_data.position, DirectX::XMVectorAdd(spotlight_data.position, spotlight_data.direction), up_direction_iv);
+        }
 
         ImGui::End();
 

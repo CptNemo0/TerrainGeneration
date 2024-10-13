@@ -26,7 +26,8 @@ struct GridBuffer
 {
 	float offset;
 	float width;
-	float padding1, padding2;
+	float time;
+	float padding2;
 };
 
 struct CameraBuffer
