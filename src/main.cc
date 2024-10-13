@@ -22,6 +22,8 @@ int main(int, char**)
 {
 #pragma region Initialization
 
+    ULONGLONG start_time = GetTickCount64();
+
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO(); (void)io;
@@ -347,8 +349,9 @@ int main(int, char**)
     background_color_data.color = DirectX::XMVECTOR({ 0.0f, 0.0f, 0.0f, 1.0f });
 
     GridBuffer grid_data;
-    grid_data.offset = 1.0f;
-    grid_data.width = 0.05f;
+    grid_data.offset = 2.0f;
+    grid_data.width = 0.5f;
+    grid_data.time = 0.0f;
 
     ViewProjBuffer view_proj_data;
     view_proj_data.view_matrix = view_matrix;
@@ -556,6 +559,11 @@ int main(int, char**)
         }
 
 #pragma endregion
+
+        ULONGLONG current_time = GetTickCount64();
+        float t = (current_time - start_time) * 0.001f;
+
+        grid_data.time = t;
         
         //======================== Logic
         D3D11_MAPPED_SUBRESOURCE mapped_resource;

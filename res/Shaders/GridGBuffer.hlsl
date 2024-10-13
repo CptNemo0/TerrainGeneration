@@ -48,7 +48,8 @@ cbuffer GridBuffer : register(b4)
 {
     float offset;
     float width;
-    float2 padding;
+    float time;
+    float padding;
 };
 
 cbuffer SpotlightBuffer : register(b5)
@@ -99,13 +100,17 @@ PixelInput VSMain(VertexInput input)
 PixelOutput PSMain(PixelInput input)
 {
     float4 const_color = float4(0.65, 0.65, 0.75, 1.0);
+
+    float wpx = input.world_position.x + sin(input.world_position.z + time * 0.5 * 0.241378);
+    float wpz = input.world_position.z + sin(input.world_position.x + time * 0.5 * 0.345786);
     
-    if (fmod(abs(input.world_position.x) + 0.5 * width, 2.0 * offset) <= width
-    || fmod(abs(input.world_position.z) + 0.5 * width, 2.0 * offset) <= width
-    || fmod(abs(input.world_position.x) + 0.125 * width, offset) <= 0.25 * width
-    || fmod(abs(input.world_position.z) + 0.125 * width, offset) <= 0.25 * width)
+    if (fmod(abs(wpx) + 0.5 * width, 2.0 * offset) <= 0.25 * sin(sqrt(abs(width * time))) + 0.5
+    || fmod(abs(wpz) + 0.5 * width, 2.0 * offset) <= 0.25 * sin(sqrt(abs(width * time))) + 0.5
+    || fmod(abs(wpx) + 0.125 * width, offset) <= 0.25 * sin(sqrt(abs(width * time))) + 0.5
+    || fmod(abs(wpz) + 0.125 * width, offset) <= 0.25 * sin(sqrt(abs(width * time))) + 0.5
+    )
     {
-        const_color += float4(0.2, 0.2, 0.2, 1.0);
+        const_color = float4(0.5, 0.5, 0.6, 1.0);
     }
     
     float dist = length(input.world_position.xz);
