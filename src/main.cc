@@ -69,24 +69,24 @@ int main(int, char**)
     
     context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-    D3D11_BLEND_DESC blendDesc;
-    ZeroMemory(&blendDesc, sizeof(blendDesc));
+    D3D11_BLEND_DESC blend_desciption;
+    ZeroMemory(&blend_desciption, sizeof(blend_desciption));
 
-    blendDesc.RenderTarget[0].BlendEnable = TRUE;
-    blendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
-    blendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
-    blendDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
-    blendDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
-    blendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
-    blendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
-    blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+    blend_desciption.RenderTarget[0].BlendEnable = TRUE;
+    blend_desciption.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
+    blend_desciption.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
+    blend_desciption.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+    blend_desciption.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
+    blend_desciption.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
+    blend_desciption.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+    blend_desciption.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
 
-    ID3D11BlendState* blendState;
-    device->CreateBlendState(&blendDesc, &blendState);
+    ID3D11BlendState* blend_state;
+    device->CreateBlendState(&blend_desciption, &blend_state);
 
-    float blendFactor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+    float blend_factor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
     UINT sampleMask = 0xffffffff;
-    context->OMSetBlendState(blendState, blendFactor, sampleMask);
+    context->OMSetBlendState(blend_state, blend_factor, sampleMask);
     
 #pragma endregion     
     
@@ -250,6 +250,27 @@ int main(int, char**)
         exit(1);
     }
 
+    ID3D11Texture2D* fxaa_texture;
+    ID3D11RenderTargetView* fxaa_render_target_view;
+    ID3D11ShaderResourceView* fxaa_shader_resource_view;
+    if (device->CreateTexture2D(&texture_description, nullptr, &fxaa_texture))
+    {
+        std::cout << "Creating fxaa texture failed\n";
+        exit(1);
+    }
+
+    if (device->CreateShaderResourceView(fxaa_texture, nullptr, &fxaa_shader_resource_view))
+    {
+        std::cout << "Creating fxaa_shader_resource_view failed\n";
+        exit(1);
+    }
+
+    if (device->CreateRenderTargetView(fxaa_texture, nullptr, &fxaa_render_target_view))
+    {
+        std::cout << "Creating fxaa_shader_resource_view failed\n";
+        exit(1);
+    }
+
     texture_description = {0};
     texture_description.Width = WIDTH;
     texture_description.Height = HEIGHT;
@@ -340,6 +361,14 @@ int main(int, char**)
     device->CreateVertexShader(lv_blob->GetBufferPointer(), lv_blob->GetBufferSize(), nullptr, &light_vertex_shader);
     device->CreatePixelShader(lf_blob->GetBufferPointer(), lf_blob->GetBufferSize(), nullptr, &light_pixel_shader);
 
+    ID3D11VertexShader* fxaa_vertex_shader;
+    ID3D11PixelShader* fxaa_pixel_shader;
+    ID3DBlob* fxaav_blob = nullptr;
+    ID3DBlob* fxaaf_blob = nullptr;
+    CompileShaders(&fxaav_blob, &fxaaf_blob, L"../res/Shaders/FXAA.hlsl");
+    device->CreateVertexShader(fxaav_blob->GetBufferPointer(), fxaav_blob->GetBufferSize(), nullptr, &fxaa_vertex_shader);
+    device->CreatePixelShader(fxaaf_blob->GetBufferPointer(), fxaaf_blob->GetBufferSize(), nullptr, &fxaa_pixel_shader);
+
     ColorBuffer color_data;
     color_data.color = DirectX::XMVECTOR({ 1.0f, 0.0f, 1.0f, 1.0f });
 
@@ -369,7 +398,7 @@ int main(int, char**)
     spotlight_data.specular_color = DirectX::XMVECTOR({ 1.0f, 1.0f, 1.0f, 1.0f });
     spotlight_data.cut_off = 0.91f;
     spotlight_data.outer_cut_off = 0.82f;
-    spotlight_data.intensity = 150.0f;
+    spotlight_data.intensity = 100.0f;
    
     ViewProjBuffer lightspace_data;
     lightspace_data.view_matrix = DirectX::XMMatrixLookAtLH(spotlight_data.position, DirectX::XMVectorAdd(spotlight_data.position, spotlight_data.direction), up_direction_iv); 
@@ -681,8 +710,8 @@ int main(int, char**)
         context->DrawIndexed(3, 0, 0);
         
         // Render quad
-        context->OMSetRenderTargets(1, &main_render_target_view, depth_stencil_view);
-        context->ClearRenderTargetView(main_render_target_view, bgc);
+        context->OMSetRenderTargets(1, &fxaa_render_target_view, depth_stencil_view);
+        context->ClearRenderTargetView(fxaa_render_target_view, bgc);
         context->ClearDepthStencilView(depth_stencil_view, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0.0f);
         
         if (view_proj_constant_buffer)
@@ -704,6 +733,21 @@ int main(int, char**)
         context->PSSetShaderResources(3, 1, &depth_shader_resource_view);
         context->PSSetShaderResources(4, 1, &lightspace_position_shader_resource_view);
 
+        context->DrawIndexed(6, 0, 0);
+
+        // postprocessing
+
+        context->OMSetRenderTargets(1, &main_render_target_view, depth_stencil_view);
+        context->ClearRenderTargetView(main_render_target_view, bgc);
+        context->ClearDepthStencilView(depth_stencil_view, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0.0f);
+
+        context->VSSetShader(fxaa_vertex_shader, nullptr, 0);
+        context->PSSetShader(fxaa_pixel_shader, nullptr, 0);
+
+        context->IASetVertexBuffers(0, 1, &screen_quad_vertex_buffer, &stride, &offset);
+        context->IASetIndexBuffer(screen_quad_index_buffer, DXGI_FORMAT_R32_UINT, 0);
+        context->PSSetShaderResources(0, 1, &fxaa_shader_resource_view);
+        
         context->DrawIndexed(6, 0, 0);
 
         //======================== End Logic

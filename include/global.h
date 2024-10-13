@@ -247,8 +247,8 @@ static void InitRasterizer()
     rasterizer_description.SlopeScaledDepthBias = 0.0f;
     rasterizer_description.DepthClipEnable = false;
     rasterizer_description.ScissorEnable = false;
-    rasterizer_description.MultisampleEnable = false;
-    rasterizer_description.AntialiasedLineEnable = false;
+    rasterizer_description.MultisampleEnable = true;
+    rasterizer_description.AntialiasedLineEnable = true;
 
     device->CreateRasterizerState(&rasterizer_description, &rasterizer_state);
 }
