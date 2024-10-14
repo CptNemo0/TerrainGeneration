@@ -104,7 +104,7 @@ int main(int, char**)
         {-1.0f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f}
     };
 
-    int resolution = 100;
+    int resolution = 32;
     // Generate vertices 
     {
         triangle_vertices.clear();
@@ -164,7 +164,6 @@ int main(int, char**)
     }
     //
     
-
     ID3D11Buffer* triangle_vertex_buffer = nullptr;
     D3D11_BUFFER_DESC traingle_buffer_description;
     D3D11_SUBRESOURCE_DATA traingle_vertex_srd;
@@ -753,7 +752,7 @@ int main(int, char**)
             context->IASetVertexBuffers(0, 1, &triangle_vertex_buffer, &stride, &offset);
             context->IASetIndexBuffer(triangle_index_buffer, DXGI_FORMAT_R32_UINT, 0);
             context->VSSetConstantBuffers(1, 1, &view_proj_constant_buffer);
-            context->DrawIndexed(3, 0, 0);
+            context->DrawIndexed(3 * triangle_faces.size(), 0, 0);
 
             if (view_proj_constant_buffer)
             {

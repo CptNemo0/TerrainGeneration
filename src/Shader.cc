@@ -80,3 +80,17 @@ int CompileShaders(ID3DBlob** vs_blob, ID3DBlob** ps_blob, LPCWSTR shader_path)
 
     return 0;
 }
+
+int CompileShader(ID3DBlob** cs_blob, LPCWSTR shader_path)
+{
+    HRESULT hr = CompileShader(shader_path, "CSMain", "cs_5_0", cs_blob);
+    if (FAILED(hr))
+    {
+        std::cout << "Failed compiling compute shader %08X: " << hr << "\n";
+        return -1;
+    }
+
+    std::cout << "Compute Shader Compiled\n";
+
+    return 0;
+}
