@@ -9,6 +9,7 @@
 #include <WinBase.h>
 
 #include <algorithm>
+#include <vector>
 
 #include <imgui.h>
 #include <imgui_impl_win32.h>
@@ -16,6 +17,8 @@
 
 #include "../include/Shader.h"
 #include "../include/ConstantBufferStructs.h"
+#include "../include/Structs.h"
+
 
 // Main code
 int main(int, char**)
@@ -94,6 +97,74 @@ int main(int, char**)
     
 #pragma region Resources Initialization
 
+    std::vector<Vertex> triangle_vertices
+    {
+        {0.0f ,  1.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+        {1.0f , -1.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+        {-1.0f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f}
+    };
+
+    int resolution = 100;
+    // Generate vertices 
+    {
+        triangle_vertices.clear();
+
+        
+        float offset = 2.0f / (static_cast<float>(resolution) - 1.0f);
+
+        float start_x = -1.0f;
+        float start_y = 1.0f;
+
+        for (int i = 0; i < resolution; i++)
+        {
+            for (int j = 0; j < resolution; j++)
+            {
+                triangle_vertices.emplace_back(start_x + j * offset,
+                                               start_y - i * offset,
+                                               0.0f,
+                                               0.0f,
+                                               0.0f,
+                                               1.0f);
+            }
+        }
+    }
+    //
+
+    std::vector<Face> triangle_faces
+    {
+        { 0, 1, 2 }
+    };
+
+    //Generate faces
+    {
+        triangle_faces.clear();
+
+        bool up = true;
+
+        for (int i = 0; i < resolution - 1; i++)
+        {
+            for (int j = 0; j < resolution - 1; j++)
+            {
+                int idx = resolution * i + j;
+                
+                if (up)
+                {
+                    up = false;
+                    triangle_faces.emplace_back(idx, idx + 1, idx + resolution);
+                    triangle_faces.emplace_back(idx + 1, idx + 1 + resolution, idx + 1 + resolution - 1);
+                }
+                else
+                {
+                    up = true;
+                    triangle_faces.emplace_back(idx, idx + resolution + 1, idx + resolution);
+                    triangle_faces.emplace_back(idx, idx + 1, idx + resolution + 1);
+                }
+            }
+        }
+    }
+    //
+    
+
     ID3D11Buffer* triangle_vertex_buffer = nullptr;
     D3D11_BUFFER_DESC traingle_buffer_description;
     D3D11_SUBRESOURCE_DATA traingle_vertex_srd;
@@ -101,14 +172,14 @@ int main(int, char**)
     ZeroMemory(&traingle_buffer_description, sizeof(D3D11_BUFFER_DESC));
     ZeroMemory(&traingle_vertex_srd, sizeof(D3D11_SUBRESOURCE_DATA));
 
-    traingle_buffer_description.ByteWidth = sizeof(float) * 3 * 6;
+    traingle_buffer_description.ByteWidth = sizeof(Vertex) * triangle_vertices.size();
     traingle_buffer_description.Usage = D3D11_USAGE_DEFAULT;
     traingle_buffer_description.BindFlags = D3D11_BIND_VERTEX_BUFFER;
     traingle_buffer_description.CPUAccessFlags = 0;
     traingle_buffer_description.MiscFlags = 0;
-    traingle_buffer_description.StructureByteStride = sizeof(float) * 6;
+    traingle_buffer_description.StructureByteStride = sizeof(Vertex);
 
-    traingle_vertex_srd.pSysMem = triangle_verticies;
+    traingle_vertex_srd.pSysMem = &(triangle_vertices[0]);
     traingle_vertex_srd.SysMemPitch = 0;
     traingle_vertex_srd.SysMemSlicePitch = 0;
 
@@ -116,9 +187,9 @@ int main(int, char**)
 
     ID3D11Buffer* triangle_index_buffer;
     D3D11_BUFFER_DESC triangle_index_buffer_description = { 0 };
-    triangle_index_buffer_description.ByteWidth = sizeof(unsigned int) * 3;
+    triangle_index_buffer_description.ByteWidth = sizeof(Face) * triangle_faces.size();
     triangle_index_buffer_description.BindFlags = D3D11_BIND_INDEX_BUFFER;
-    D3D11_SUBRESOURCE_DATA triangle_index_srd = { triangle_indices, 0, 0 };
+    D3D11_SUBRESOURCE_DATA triangle_index_srd = { &(triangle_faces[0]), 0, 0 };
     device->CreateBuffer(&triangle_index_buffer_description, &triangle_index_srd, &triangle_index_buffer);
 
     // Rectangle Buffers Buffer
@@ -127,7 +198,7 @@ int main(int, char**)
     rectangle_buffer_description.ByteWidth = sizeof(float) * 4 * 6;
     rectangle_buffer_description.BindFlags = D3D11_BIND_VERTEX_BUFFER;
     rectangle_buffer_description.StructureByteStride = sizeof(float) * 6;
-    D3D11_SUBRESOURCE_DATA rectangle_vertex_srd = { rectangle_verticies, 0, 0 };
+    D3D11_SUBRESOURCE_DATA rectangle_vertex_srd = { rectangle_vertices, 0, 0 };
     device->CreateBuffer(&rectangle_buffer_description, &rectangle_vertex_srd, &rectangle_vertex_buffer);
 
     ID3D11Buffer* rectangle_index_buffer;
@@ -144,7 +215,7 @@ int main(int, char**)
     screen_quad_buffer_description.ByteWidth = sizeof(float) * 4 * 6;
     screen_quad_buffer_description.BindFlags = D3D11_BIND_VERTEX_BUFFER;
     screen_quad_buffer_description.StructureByteStride = sizeof(float) * 6;
-    D3D11_SUBRESOURCE_DATA screen_quad_vertex_srd = { screen_quad_verticies, 0, 0 };
+    D3D11_SUBRESOURCE_DATA screen_quad_vertex_srd = { screen_quad_vertices, 0, 0 };
     device->CreateBuffer(&screen_quad_buffer_description, &screen_quad_vertex_srd, &screen_quad_vertex_buffer);
 
     ID3D11Buffer* screen_quad_index_buffer;
@@ -404,8 +475,7 @@ int main(int, char**)
     spotlight_data.intensity = 100.0f;
    
     ViewProjBuffer lightspace_data;
-    lightspace_data.view_matrix = DirectX::XMMatrixLookAtLH(spotlight_data.position, DirectX::XMVectorAdd(spotlight_data.position, spotlight_data.direction), up_direction_iv); 
-    //lightspace_data.projection_matrix = DirectX::XMMatrixPerspectiveFovLH(spotlight_data.cut_off * 2.0f, 16.0f / 9.0f, 0.1f, 1000.0f);
+    lightspace_data.view_matrix = DirectX::XMMatrixLookAtLH(spotlight_data.position, DirectX::XMVectorAdd(spotlight_data.position, spotlight_data.direction), up_direction_iv);
     lightspace_data.projection_matrix = DirectX::XMMatrixOrthographicOffCenterLH(-8.0f, 8.0f, -4.5f, 4.5f, 0.1f, 100.0f);
 
     ID3D11Buffer* color_constant_buffer;
@@ -720,11 +790,19 @@ int main(int, char**)
         context->VSSetShader(g_vertex_shader, nullptr, 0);
         context->PSSetShader(g_pixel_shader, nullptr, 0);
 
+        rasterizer_description.FillMode = D3D11_FILL_WIREFRAME;
+        device->CreateRasterizerState(&rasterizer_description, &rasterizer_state);
+        context->RSSetState(rasterizer_state);
+
         context->IASetVertexBuffers(0, 1, &triangle_vertex_buffer, &stride, &offset);
         context->IASetIndexBuffer(triangle_index_buffer, DXGI_FORMAT_R32_UINT, 0);
         context->VSSetConstantBuffers(1, 1, &view_proj_constant_buffer);
-        context->DrawIndexed(3, 0, 0);
+        context->DrawIndexed(3 * triangle_faces.size(), 0, 0);
         
+        rasterizer_description.FillMode = D3D11_FILL_SOLID;
+        device->CreateRasterizerState(&rasterizer_description, &rasterizer_state);
+        context->RSSetState(rasterizer_state);
+
         // Render quad
         context->OMSetRenderTargets(1, &fxaa_render_target_view, depth_stencil_view);
         context->ClearRenderTargetView(fxaa_render_target_view, bgc);

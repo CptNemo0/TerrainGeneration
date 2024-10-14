@@ -40,13 +40,13 @@ D3D11_VIEWPORT viewport;
 ID3D11RasterizerState* rasterizer_state = nullptr;
 D3D11_RASTERIZER_DESC rasterizer_description;
 
-const float triangle_verticies[]
-{
-    //position==========| normals=========|
-      0.0f ,  1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
-      1.0f , -1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
-      -1.0f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
-};
+//const float triangle_vertices[]
+//{
+//    //position==========| normals=========|
+//      0.0f ,  1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
+//      1.0f , -1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
+//      -1.0f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
+//};
 
 
 const unsigned int triangle_indices[]
@@ -54,7 +54,7 @@ const unsigned int triangle_indices[]
     0, 1, 2,
 };
 
-const float rectangle_verticies[]
+const float rectangle_vertices[]
 {
     //position============= | normals=========|
     -150.0f, -2.5f,  150.0f, 0.0f, 1.0f, 0.0f,
@@ -69,7 +69,7 @@ const unsigned int rectangle_indices[]
     3, 1, 2
 };
 
-const float screen_quad_verticies[]
+const float screen_quad_vertices[]
 {
     //position========| normals=========|
     -1.0f,  1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
