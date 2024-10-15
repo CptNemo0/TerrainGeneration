@@ -377,72 +377,27 @@ int main(int, char**)
 
 #pragma region Shaders
 
-    ID3D11VertexShader* vertex_shader;
-    ID3D11PixelShader* pixel_shader;
-    ID3DBlob* vs_blob = nullptr;
-    ID3DBlob* ps_blob = nullptr;
-    CompileShaders(&vs_blob, &ps_blob, L"../res/Shaders/Shader.hlsl");
-    device->CreateVertexShader(vs_blob->GetBufferPointer(), vs_blob->GetBufferSize(), nullptr, &vertex_shader);
-    device->CreatePixelShader(ps_blob->GetBufferPointer(), ps_blob->GetBufferSize(), nullptr, &pixel_shader);
+    Shader screen_shader;
+    CreateShaders(screen_shader, L"../res/Shaders/ScreenQuad.hlsl");
 
-    ID3D11VertexShader* grid_vertex_shader;
-    ID3D11PixelShader* grid_pixel_shader;
-    ID3DBlob* gvs_blob = nullptr;
-    ID3DBlob* gps_blob = nullptr;
-    CompileShaders(&gvs_blob, &gps_blob, L"../res/Shaders/GridShader.hlsl");
-    device->CreateVertexShader(gvs_blob->GetBufferPointer(), gvs_blob->GetBufferSize(), nullptr, &grid_vertex_shader);
-    device->CreatePixelShader(gps_blob->GetBufferPointer(), gps_blob->GetBufferSize(), nullptr, &grid_pixel_shader);
+    Shader shadowmap_shader;
+    CreateShaders(shadowmap_shader, L"../res/Shaders/ShadowMap.hlsl");
 
-    ID3D11VertexShader* screen_vertex_shader;
-    ID3D11PixelShader* screen_pixel_shader;
-    ID3DBlob* svs_blob = nullptr;
-    ID3DBlob* sps_blob = nullptr;
-    CompileShaders(&svs_blob, &sps_blob, L"../res/Shaders/ScreenQuad.hlsl");
-    device->CreateVertexShader(svs_blob->GetBufferPointer(), svs_blob->GetBufferSize(), nullptr, &screen_vertex_shader);
-    device->CreatePixelShader(sps_blob->GetBufferPointer(), sps_blob->GetBufferSize(), nullptr, &screen_pixel_shader);
+    Shader gbuffer_shader;
+    CreateShaders(gbuffer_shader, L"../res/Shaders/GBuffer.hlsl");
 
-    ID3D11VertexShader* sm_vertex_shader;
-    ID3D11PixelShader* sm_pixel_shader;
-    ID3DBlob* smvs_blob = nullptr;
-    ID3DBlob* smps_blob = nullptr;
-    CompileShaders(&smvs_blob, &smps_blob, L"../res/Shaders/ShadowMap.hlsl");
-    device->CreateVertexShader(smvs_blob->GetBufferPointer(), smvs_blob->GetBufferSize(), nullptr, &sm_vertex_shader);
-    device->CreatePixelShader(smps_blob->GetBufferPointer(), smps_blob->GetBufferSize(), nullptr, &sm_pixel_shader);
+    Shader gbuffer_grid_shader;
+    CreateShaders(gbuffer_grid_shader, L"../res/Shaders/GridGBuffer.hlsl");
 
-    ID3D11VertexShader* g_vertex_shader;
-    ID3D11PixelShader* g_pixel_shader;
-    ID3DBlob* gv_blob = nullptr;
-    ID3DBlob* gp_blob = nullptr;
-    CompileShaders(&gv_blob, &gp_blob, L"../res/Shaders/GBuffer.hlsl");
-    device->CreateVertexShader(gv_blob->GetBufferPointer(), gv_blob->GetBufferSize(), nullptr, &g_vertex_shader);
-    device->CreatePixelShader(gp_blob->GetBufferPointer(), gp_blob->GetBufferSize(), nullptr, &g_pixel_shader);
+    Shader light_shader;
+    CreateShaders(light_shader, L"../res/Shaders/Lighting.hlsl");
 
-    ID3D11VertexShader* g_grid_vertex_shader;
-    ID3D11PixelShader* g_grid_pixel_shader;
-    ID3DBlob* ggv_blob = nullptr;
-    ID3DBlob* ggp_blob = nullptr;
-    CompileShaders(&ggv_blob, &ggp_blob, L"../res/Shaders/GridGBuffer.hlsl");
-    device->CreateVertexShader(ggv_blob->GetBufferPointer(), ggv_blob->GetBufferSize(), nullptr, &g_grid_vertex_shader);
-    device->CreatePixelShader(ggp_blob->GetBufferPointer(), ggp_blob->GetBufferSize(), nullptr, &g_grid_pixel_shader);
+#pragma endregion
 
-    ID3D11VertexShader* light_vertex_shader;
-    ID3D11PixelShader* light_pixel_shader;
-    ID3DBlob* lv_blob = nullptr;
-    ID3DBlob* lf_blob = nullptr;
-    CompileShaders(&lv_blob, &lf_blob, L"../res/Shaders/Lighting.hlsl");
-    device->CreateVertexShader(lv_blob->GetBufferPointer(), lv_blob->GetBufferSize(), nullptr, &light_vertex_shader);
-    device->CreatePixelShader(lf_blob->GetBufferPointer(), lf_blob->GetBufferSize(), nullptr, &light_pixel_shader);
-
-    ID3D11VertexShader* fxaa_vertex_shader;
-    ID3D11PixelShader* fxaa_pixel_shader;
-    ID3DBlob* fxaav_blob = nullptr;
-    ID3DBlob* fxaaf_blob = nullptr;
-    CompileShaders(&fxaav_blob, &fxaaf_blob, L"../res/Shaders/FXAA.hlsl");
-    device->CreateVertexShader(fxaav_blob->GetBufferPointer(), fxaav_blob->GetBufferSize(), nullptr, &fxaa_vertex_shader);
-    device->CreatePixelShader(fxaaf_blob->GetBufferPointer(), fxaaf_blob->GetBufferSize(), nullptr, &fxaa_pixel_shader);
+#pragma region ConstantBuffers
 
     ColorBuffer color_data;
-    color_data.color = DirectX::XMVECTOR({ 1.0f, 0.0f, 1.0f, 1.0f });
+    color_data.color = DirectX::XMVECTOR({ 0.8f, 0.8f, 0.9f, 1.0f });
 
     ColorBuffer background_color_data;
     background_color_data.color = DirectX::XMVECTOR({ 0.0f, 0.0f, 0.0f, 1.0f });
@@ -459,10 +414,10 @@ int main(int, char**)
     CameraBuffer camera_data;
     camera_data.camera_position = camera_position_iv;
 
-    ModelMatrixBuffer mm_data;
-    mm_data.model_matrix = DirectX::XMMatrixIdentity();
-    auto matrix_determinant = DirectX::XMMatrixDeterminant(mm_data.model_matrix);
-    mm_data.ti_model_matrix = DirectX::XMMatrixTranspose(DirectX::XMMatrixInverse(&matrix_determinant, mm_data.model_matrix));
+    ModelMatrixBuffer model_matrix_data;
+    model_matrix_data.model_matrix = DirectX::XMMatrixIdentity();
+    auto matrix_determinant = DirectX::XMMatrixDeterminant(model_matrix_data.model_matrix);
+    model_matrix_data.ti_model_matrix = DirectX::XMMatrixTranspose(DirectX::XMMatrixInverse(&matrix_determinant, model_matrix_data.model_matrix));
 
     SpotlightBuffer spotlight_data;
     spotlight_data.position = DirectX::XMVECTOR({ 5.0f,5.0f, 5.0f, 1.0f });
@@ -472,42 +427,31 @@ int main(int, char**)
     spotlight_data.cut_off = 0.91f;
     spotlight_data.outer_cut_off = 0.82f;
     spotlight_data.intensity = 100.0f;
-   
+
     ViewProjBuffer lightspace_data;
     lightspace_data.view_matrix = DirectX::XMMatrixLookAtLH(spotlight_data.position, DirectX::XMVectorAdd(spotlight_data.position, spotlight_data.direction), up_direction_iv);
     lightspace_data.projection_matrix = DirectX::XMMatrixOrthographicOffCenterLH(-8.0f, 8.0f, -4.5f, 4.5f, 0.1f, 100.0f);
 
-    
-   
     ID3D11Buffer* color_constant_buffer = nullptr;
     CreateCBuffer(&color_constant_buffer, color_data);
-    context->PSSetConstantBuffers(0, 1, &color_constant_buffer);
 
     ID3D11Buffer* view_proj_constant_buffer;
     CreateCBuffer(&view_proj_constant_buffer, view_proj_data); 
-    context->VSSetConstantBuffers(1, 1, &view_proj_constant_buffer);
-    context->PSSetConstantBuffers(1, 1, &view_proj_constant_buffer);
-
+    
     ID3D11Buffer* camera_constant_buffer;
     CreateCBuffer(&camera_constant_buffer, camera_data);
-    context->VSSetConstantBuffers(2, 1, &camera_constant_buffer);
-    context->PSSetConstantBuffers(2, 1, &camera_constant_buffer);
 
-    ID3D11Buffer* mm_constant_buffer;
-    CreateCBuffer(&mm_constant_buffer, mm_data);
-    context->VSSetConstantBuffers(3, 1, &mm_constant_buffer);
+    ID3D11Buffer* model_matrix_constant_buffer;
+    CreateCBuffer(&model_matrix_constant_buffer, model_matrix_data);
 
     ID3D11Buffer* grid_constant_buffer;
     CreateCBuffer(&grid_constant_buffer, grid_data);
-    context->PSSetConstantBuffers(4, 1, &grid_constant_buffer);
-
+    
     ID3D11Buffer* spotlight_constant_buffer;
     CreateCBuffer(&spotlight_constant_buffer, spotlight_data);
-    context->PSSetConstantBuffers(5, 1, &spotlight_constant_buffer);
-
+    
     ID3D11Buffer* bg_color_constant_buffer;
-    CreateCBuffer(&bg_color_constant_buffer, bg_color_constant_buffer);
-    context->PSSetConstantBuffers(6, 1, &bg_color_constant_buffer);
+    CreateCBuffer(&bg_color_constant_buffer, background_color_data);
 
 #pragma endregion
     
@@ -518,14 +462,20 @@ int main(int, char**)
         {"NORMAL",  0, DXGI_FORMAT_R32G32B32_FLOAT, 0,  D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0}
     };
     ComPtr<ID3D11InputLayout> input_layout = nullptr;
-    device->CreateInputLayout(input_element_description, 2, vs_blob->GetBufferPointer(), vs_blob->GetBufferSize(), &input_layout);
+    device->CreateInputLayout(input_element_description, 2, gbuffer_shader.vs_blob->GetBufferPointer(), gbuffer_shader.vs_blob->GetBufferSize(), &input_layout);
     context->IASetInputLayout(input_layout.Get());
 
     uint32_t stride = sizeof(float) * 6;
     uint32_t offset = 0;
     
+    float bgc[4] = 
+    { 
+        DirectX::XMVectorGetX(background_color_data.color),
+        DirectX::XMVectorGetY(background_color_data.color),
+        DirectX::XMVectorGetZ(background_color_data.color),
+        DirectX::XMVectorGetW(background_color_data.color) 
+    };
 
- 
     // Main loop
     bool done = false;
     bool rotate = false;
@@ -600,109 +550,103 @@ int main(int, char**)
 
         ULONGLONG current_time = GetTickCount64();
         float t = (current_time - start_time) * 0.001f;
-
         grid_data.time = t;
+
         
-        //======================== Logic
-        D3D11_MAPPED_SUBRESOURCE mapped_resource;
-        
-        SetCBuffer(color_constant_buffer, color_data);
-        SetCBuffer(camera_constant_buffer, camera_data);
-        SetCBuffer(mm_constant_buffer, mm_data);
-        SetCBuffer(grid_constant_buffer, grid_data);
-        SetCBuffer(bg_color_constant_buffer, background_color_data);
-        SetCBuffer(spotlight_constant_buffer, spotlight_data);
+#pragma region Shadow map
 
-#pragma region Render Depth For Shadow Map
-        {
-            float white[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
-            ID3D11RenderTargetView* render_targets[2] = { depth_render_target_view, lightspace_position_render_target_view};
-            context->ClearRenderTargetView(depth_render_target_view, white);
-            context->ClearRenderTargetView(lightspace_position_render_target_view, white);
-            context->ClearDepthStencilView(depth_stencil_view, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0.0f);
-            context->OMSetRenderTargets(2, render_targets, depth_stencil_view);
-
-            context->VSSetShader(sm_vertex_shader, nullptr, 0);
-            context->PSSetShader(sm_pixel_shader, nullptr, 0);
-
-            SetCBuffer(view_proj_constant_buffer, lightspace_data);
-
-            context->IASetVertexBuffers(0, 1, &rectangle_vertex_buffer, &stride, &offset);
-            context->IASetIndexBuffer(rectangle_index_buffer, DXGI_FORMAT_R32_UINT, 0);
-            context->VSSetConstantBuffers(1, 1, &view_proj_constant_buffer);
-            context->DrawIndexed(6, 0, 0);
-
-            context->IASetVertexBuffers(0, 1, &triangle_vertex_buffer, &stride, &offset);
-            context->IASetIndexBuffer(triangle_index_buffer, DXGI_FORMAT_R32_UINT, 0);
-            context->VSSetConstantBuffers(1, 1, &view_proj_constant_buffer);
-            context->DrawIndexed(3 * triangle_faces.size(), 0, 0);
-
-            SetCBuffer(view_proj_constant_buffer, view_proj_data);
-        }
-#pragma endregion
-
-        float bgcx = DirectX::XMVectorGetX(background_color_data.color);
-        float bgcy = DirectX::XMVectorGetY(background_color_data.color);
-        float bgcz = DirectX::XMVectorGetZ(background_color_data.color);
-        float bgcw = DirectX::XMVectorGetW(background_color_data.color);
-
-        float bgc[4] = { bgcx , bgcy, bgcz, bgcw};
-
-        ID3D11RenderTargetView* render_targets[3] = { position_render_target_view, normal_render_target_view, color_render_target_view };
-        context->OMSetRenderTargets(3, render_targets, depth_stencil_view);
-        context->ClearRenderTargetView(position_render_target_view, bgc);
-        context->ClearRenderTargetView(normal_render_target_view, bgc);
-        context->ClearRenderTargetView(color_render_target_view, bgc);
+        ID3D11RenderTargetView* shadowmap_render_targets[2] = { depth_render_target_view, lightspace_position_render_target_view };
+        context->ClearRenderTargetView(depth_render_target_view, white);
+        context->ClearRenderTargetView(lightspace_position_render_target_view, white);
+        context->OMSetRenderTargets(2, shadowmap_render_targets, depth_stencil_view);
         context->ClearDepthStencilView(depth_stencil_view, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0.0f);
 
-        context->VSSetShader(g_grid_vertex_shader, nullptr, 0);
-        context->PSSetShader(g_grid_pixel_shader, nullptr, 0);
-        
+        BindShaders(shadowmap_shader);
+
+        context->VSSetConstantBuffers(0, 1, &view_proj_constant_buffer);
+        context->VSSetConstantBuffers(1, 1, &model_matrix_constant_buffer);
+        SetCBuffer(view_proj_constant_buffer, lightspace_data);
+        SetCBuffer(model_matrix_constant_buffer, model_matrix_data);
+
         context->IASetVertexBuffers(0, 1, &rectangle_vertex_buffer, &stride, &offset);
         context->IASetIndexBuffer(rectangle_index_buffer, DXGI_FORMAT_R32_UINT, 0);
         context->DrawIndexed(6, 0, 0);
 
-        context->VSSetShader(g_vertex_shader, nullptr, 0);
-        context->PSSetShader(g_pixel_shader, nullptr, 0);
-
         context->IASetVertexBuffers(0, 1, &triangle_vertex_buffer, &stride, &offset);
         context->IASetIndexBuffer(triangle_index_buffer, DXGI_FORMAT_R32_UINT, 0);
         context->DrawIndexed(3 * triangle_faces.size(), 0, 0);
+
+#pragma endregion
         
-        // Render quad
-        context->OMSetRenderTargets(1, &fxaa_render_target_view, depth_stencil_view);
-        context->ClearRenderTargetView(fxaa_render_target_view, bgc);
+#pragma region GBuffer
+
+        ID3D11RenderTargetView* gbuffer_render_targets[3] = { position_render_target_view, normal_render_target_view, color_render_target_view };
+        context->ClearRenderTargetView(position_render_target_view, bgc);
+        context->ClearRenderTargetView(normal_render_target_view, bgc);
+        context->ClearRenderTargetView(color_render_target_view, bgc);
+        context->OMSetRenderTargets(3, gbuffer_render_targets, depth_stencil_view);
+        context->ClearDepthStencilView(depth_stencil_view, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0.0f);
+
+        BindShaders(gbuffer_grid_shader);
+
+        context->VSSetConstantBuffers(0, 1, &view_proj_constant_buffer);
+        context->VSSetConstantBuffers(1, 1, &camera_constant_buffer);
+        context->VSSetConstantBuffers(2, 1, &model_matrix_constant_buffer);
+        context->PSSetConstantBuffers(3, 1, &grid_constant_buffer);
+        context->PSSetConstantBuffers(4, 1, &bg_color_constant_buffer);
+        SetCBuffer(view_proj_constant_buffer, view_proj_data);
+        SetCBuffer(camera_constant_buffer, camera_data);
+        SetCBuffer(model_matrix_constant_buffer, model_matrix_data);
+        SetCBuffer(grid_constant_buffer, grid_data);
+        SetCBuffer(bg_color_constant_buffer, background_color_data);
+
+        context->IASetVertexBuffers(0, 1, &rectangle_vertex_buffer, &stride, &offset);
+        context->IASetIndexBuffer(rectangle_index_buffer, DXGI_FORMAT_R32_UINT, 0);
+        context->DrawIndexed(6, 0, 0);
+        
+        BindShaders(gbuffer_shader);
+        
+        context->PSSetConstantBuffers(0, 1, &color_constant_buffer);
+        context->VSSetConstantBuffers(1, 1, &view_proj_constant_buffer);
+        context->VSSetConstantBuffers(2, 1, &camera_constant_buffer);
+        context->VSSetConstantBuffers(3, 1, &model_matrix_constant_buffer);
+        SetCBuffer(color_constant_buffer, color_data);
+        SetCBuffer(view_proj_constant_buffer, view_proj_data);
+        SetCBuffer(camera_constant_buffer, camera_data);
+        SetCBuffer(model_matrix_constant_buffer, model_matrix_data);
+        
+        context->IASetVertexBuffers(0, 1, &triangle_vertex_buffer, &stride, &offset);
+        context->IASetIndexBuffer(triangle_index_buffer, DXGI_FORMAT_R32_UINT, 0);
+        context->DrawIndexed(3 * triangle_faces.size(), 0, 0);
+
+#pragma endregion
+        
+#pragma region Light
+
+        context->OMSetRenderTargets(1, &main_render_target_view, depth_stencil_view);
+        context->ClearRenderTargetView(main_render_target_view, bgc);
         context->ClearDepthStencilView(depth_stencil_view, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0.0f);
         
-        SetCBuffer(view_proj_constant_buffer, lightspace_data);
+        BindShaders(light_shader);
+        context->PSSetConstantBuffers(0, 1, &view_proj_constant_buffer);
+        context->PSSetConstantBuffers(1, 1, &camera_constant_buffer);
+        context->PSSetConstantBuffers(2, 1, &spotlight_constant_buffer);
 
-        context->VSSetShader(light_vertex_shader, nullptr, 0);
-        context->PSSetShader(light_pixel_shader, nullptr, 0);
         context->PSSetShaderResources(0, 1, &position_shader_resource_view);
         context->PSSetShaderResources(1, 1, &normal_shader_resource_view);
         context->PSSetShaderResources(2, 1, &color_shader_resource_view);
         context->PSSetShaderResources(3, 1, &depth_shader_resource_view);
         context->PSSetShaderResources(4, 1, &lightspace_position_shader_resource_view);
 
-        context->IASetVertexBuffers(0, 1, &screen_quad_vertex_buffer, &stride, &offset);
-        context->IASetIndexBuffer(screen_quad_index_buffer, DXGI_FORMAT_R32_UINT, 0);
-        context->DrawIndexed(6, 0, 0);
-
-        // postprocessing
-
-        context->OMSetRenderTargets(1, &main_render_target_view, depth_stencil_view);
-        context->ClearRenderTargetView(main_render_target_view, bgc);
-        context->ClearDepthStencilView(depth_stencil_view, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0.0f);
-
-        context->VSSetShader(fxaa_vertex_shader, nullptr, 0);
-        context->PSSetShader(fxaa_pixel_shader, nullptr, 0);
-        context->PSSetShaderResources(0, 1, &fxaa_shader_resource_view);
+        SetCBuffer(view_proj_constant_buffer, lightspace_data);
+        SetCBuffer(camera_constant_buffer, camera_data);
+        SetCBuffer(spotlight_constant_buffer, spotlight_data);
 
         context->IASetVertexBuffers(0, 1, &screen_quad_vertex_buffer, &stride, &offset);
         context->IASetIndexBuffer(screen_quad_index_buffer, DXGI_FORMAT_R32_UINT, 0);
         context->DrawIndexed(6, 0, 0);
 
-        //======================== End Logic
+#pragma endregion
 
 #pragma region IMGUI
 

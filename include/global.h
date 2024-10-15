@@ -11,6 +11,8 @@
 #include <imgui_impl_win32.h>
 #include <imgui_impl_dx11.h>
 
+#include "Shader.h"
+
 #ifndef GET_X_LPARAM
 #define GET_X_LPARAM(lp) ((int)(short)LOWORD(lp))
 #endif
@@ -84,6 +86,8 @@ const unsigned int screen_quad_indices[]
     0, 1, 3,
     3, 1, 2
 };
+
+const float white[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
 
 void CreateRenderTarget()
 {
@@ -297,6 +301,19 @@ static void CreateCBuffer(ID3D11Buffer** buffer, T& data)
     srd.SysMemPitch = 0;
     srd.SysMemSlicePitch = 0;
     device->CreateBuffer(&description, &srd, buffer);
+}
+
+static void CreateShaders(Shader& shader, LPCWSTR path)
+{
+    CompileShaders(&(shader.vs_blob), &(shader.ps_blob), path);
+    device->CreateVertexShader(shader.vs_blob->GetBufferPointer(), shader.vs_blob->GetBufferSize(), nullptr, &(shader.vertex_shader));
+    device->CreatePixelShader(shader.ps_blob->GetBufferPointer(), shader.ps_blob->GetBufferSize(), nullptr, &(shader.pixel_shader));
+}
+
+static void BindShaders(Shader& shader)
+{
+    context->VSSetShader(shader.vertex_shader, nullptr, 0);
+    context->PSSetShader(shader.pixel_shader, nullptr, 0);
 }
 
 #endif GLABAL_H

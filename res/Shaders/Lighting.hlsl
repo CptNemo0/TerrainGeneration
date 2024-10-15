@@ -12,19 +12,18 @@ struct PixelInput
     float2 uv : TEXCOORD;
 };
 
-cbuffer ViewProjBuffer : register(b1)
+cbuffer ViewProjBuffer : register(b0)
 {
     float4x4 view_matrix;
     float4x4 projection_matrix;
 };
 
-cbuffer CameraBuffer : register(b2)
+cbuffer CameraBuffer : register(b1)
 {
     float4 camera_position;
 };
 
-
-cbuffer SpotlightBuffer : register(b5)
+cbuffer SpotlightBuffer : register(b2)
 {
     float4 sl_position;
     float4 sl_direction;

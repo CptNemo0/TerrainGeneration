@@ -17,45 +17,16 @@ struct PixelOutput
     float4 position : SV_Target1;
 };
 
-cbuffer ColorBuffer : register(b0)
-{
-    float4 color;
-};
-
-cbuffer ViewProjBuffer : register(b1)
+cbuffer ViewProjBuffer : register(b0)
 {
     float4x4 view_matrix;
     float4x4 projection_matrix;
 };
 
-cbuffer CameraBuffer : register(b2)
-{
-    float4 camera_position;
-};
-
-cbuffer ModelMatrixBuffer : register(b3)
+cbuffer ModelMatrixBuffer : register(b1)
 {
     float4x4 model_matrix;
     float4x4 ti_model_matrix;
-};
-
-cbuffer GridBuffer : register(b4)
-{
-    float offset;
-    float width;
-    float2 padding;
-};
-
-cbuffer SpotlightBuffer : register(b5)
-{
-    float4 sl_position;
-    float4 sl_direction;
-    float4 sl_diffuse_color;
-    float4 sl_specular_color;
-    float sl_cut_off;
-    float sl_outer_cut_off;
-    float sl_intensity;
-    float sl_padding;
 };
 
 PixelInput VSMain(VertexInput input)

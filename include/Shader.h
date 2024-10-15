@@ -7,8 +7,17 @@
 #include <atlstr.h>
 #include <iostream>
 #include <d3dcompiler.h>
+#include <d3d11.h>
 
 #pragma comment(lib,"d3dcompiler.lib")
+
+struct Shader
+{
+    ID3D11VertexShader* vertex_shader = nullptr;
+    ID3D11PixelShader*  pixel_shader = nullptr;
+    ID3DBlob* vs_blob = nullptr;
+    ID3DBlob* ps_blob = nullptr;
+};
 
 HRESULT CompileShader(_In_ LPCWSTR src_file, _In_ LPCSTR entry_point, _In_ LPCSTR profile, _Outptr_ ID3DBlob** blob);
 
