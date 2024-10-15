@@ -2,6 +2,7 @@
 #define GLABAL_H
 
 #include <iostream>
+#include <memory>
 
 #include <d3d11.h>
 #include <wrl/client.h>
@@ -280,6 +281,22 @@ static void SetCBuffer(ID3D11Buffer* buffer, T& data)
     T* data_ptr = (T*)mapped_resource.pData;
     *data_ptr = data;
     context->Unmap(buffer, 0);
+}
+
+template <typename T>
+static void CreateCBuffer(ID3D11Buffer** buffer, T& data)
+{   
+
+    D3D11_BUFFER_DESC description = { 0 };
+    description.ByteWidth = sizeof(T);
+    description.Usage = D3D11_USAGE_DYNAMIC;
+    description.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+    description.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+    D3D11_SUBRESOURCE_DATA srd;
+    srd.pSysMem = &data;
+    srd.SysMemPitch = 0;
+    srd.SysMemSlicePitch = 0;
+    device->CreateBuffer(&description, &srd, buffer);
 }
 
 #endif GLABAL_H

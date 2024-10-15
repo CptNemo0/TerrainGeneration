@@ -477,97 +477,36 @@ int main(int, char**)
     lightspace_data.view_matrix = DirectX::XMMatrixLookAtLH(spotlight_data.position, DirectX::XMVectorAdd(spotlight_data.position, spotlight_data.direction), up_direction_iv);
     lightspace_data.projection_matrix = DirectX::XMMatrixOrthographicOffCenterLH(-8.0f, 8.0f, -4.5f, 4.5f, 0.1f, 100.0f);
 
-    ID3D11Buffer* color_constant_buffer;
-    D3D11_BUFFER_DESC color_constant_buffer_description = { 0 };
-    color_constant_buffer_description.ByteWidth = sizeof(ColorBuffer);
-    color_constant_buffer_description.Usage = D3D11_USAGE_DYNAMIC;
-    color_constant_buffer_description.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-    color_constant_buffer_description.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-    D3D11_SUBRESOURCE_DATA color_constant_buffer_srd;
-    color_constant_buffer_srd.pSysMem = &color_data;
-    color_constant_buffer_srd.SysMemPitch = 0;
-    color_constant_buffer_srd.SysMemSlicePitch = 0;
-    device->CreateBuffer(&color_constant_buffer_description, &color_constant_buffer_srd, &color_constant_buffer);
+    
+   
+    ID3D11Buffer* color_constant_buffer = nullptr;
+    CreateCBuffer(&color_constant_buffer, color_data);
     context->PSSetConstantBuffers(0, 1, &color_constant_buffer);
 
     ID3D11Buffer* view_proj_constant_buffer;
-    D3D11_BUFFER_DESC view_proj_constant_buffer_description = { 0 };
-    view_proj_constant_buffer_description.ByteWidth = sizeof(ViewProjBuffer);
-    view_proj_constant_buffer_description.Usage = D3D11_USAGE_DYNAMIC;
-    view_proj_constant_buffer_description.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-    view_proj_constant_buffer_description.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-    D3D11_SUBRESOURCE_DATA view_proj_constant_buffer_srd;
-    view_proj_constant_buffer_srd.pSysMem = &view_proj_data;
-    view_proj_constant_buffer_srd.SysMemPitch = 0;
-    view_proj_constant_buffer_srd.SysMemSlicePitch = 0;
-    device->CreateBuffer(&view_proj_constant_buffer_description, &view_proj_constant_buffer_srd, &view_proj_constant_buffer);
+    CreateCBuffer(&view_proj_constant_buffer, view_proj_data); 
     context->VSSetConstantBuffers(1, 1, &view_proj_constant_buffer);
     context->PSSetConstantBuffers(1, 1, &view_proj_constant_buffer);
 
     ID3D11Buffer* camera_constant_buffer;
-    D3D11_BUFFER_DESC camera_constant_buffer_description = { 0 };
-    camera_constant_buffer_description.ByteWidth = sizeof(CameraBuffer);
-    camera_constant_buffer_description.Usage = D3D11_USAGE_DYNAMIC;
-    camera_constant_buffer_description.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-    camera_constant_buffer_description.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-    D3D11_SUBRESOURCE_DATA camera_constant_buffer_srd;
-    camera_constant_buffer_srd.pSysMem = &camera_data;
-    camera_constant_buffer_srd.SysMemPitch = 0;
-    camera_constant_buffer_srd.SysMemSlicePitch = 0;
-    device->CreateBuffer(&camera_constant_buffer_description, &camera_constant_buffer_srd, &camera_constant_buffer);
+    CreateCBuffer(&camera_constant_buffer, camera_data);
     context->VSSetConstantBuffers(2, 1, &camera_constant_buffer);
     context->PSSetConstantBuffers(2, 1, &camera_constant_buffer);
 
     ID3D11Buffer* mm_constant_buffer;
-    D3D11_BUFFER_DESC mm_constant_buffer_description = { 0 };
-    mm_constant_buffer_description.ByteWidth = sizeof(ModelMatrixBuffer);
-    mm_constant_buffer_description.Usage = D3D11_USAGE_DYNAMIC;
-    mm_constant_buffer_description.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-    mm_constant_buffer_description.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-    D3D11_SUBRESOURCE_DATA mm_constant_buffer_srd;
-    mm_constant_buffer_srd.pSysMem = &mm_data;
-    mm_constant_buffer_srd.SysMemPitch = 0;
-    mm_constant_buffer_srd.SysMemSlicePitch = 0;
-    device->CreateBuffer(&mm_constant_buffer_description, &mm_constant_buffer_srd, &mm_constant_buffer);
+    CreateCBuffer(&mm_constant_buffer, mm_data);
     context->VSSetConstantBuffers(3, 1, &mm_constant_buffer);
 
     ID3D11Buffer* grid_constant_buffer;
-    D3D11_BUFFER_DESC grid_constant_buffer_description = { 0 };
-    grid_constant_buffer_description.ByteWidth = sizeof(GridBuffer);
-    grid_constant_buffer_description.Usage = D3D11_USAGE_DYNAMIC;
-    grid_constant_buffer_description.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-    grid_constant_buffer_description.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-    D3D11_SUBRESOURCE_DATA grid_constant_buffer_srd;
-    grid_constant_buffer_srd.pSysMem = &grid_data;
-    grid_constant_buffer_srd.SysMemPitch = 0;
-    grid_constant_buffer_srd.SysMemSlicePitch = 0;
-    device->CreateBuffer(&grid_constant_buffer_description, &grid_constant_buffer_srd, &grid_constant_buffer);
+    CreateCBuffer(&grid_constant_buffer, grid_data);
     context->PSSetConstantBuffers(4, 1, &grid_constant_buffer);
 
     ID3D11Buffer* spotlight_constant_buffer;
-    D3D11_BUFFER_DESC spotlight_constant_buffer_description = { 0 };
-    spotlight_constant_buffer_description.ByteWidth = sizeof(SpotlightBuffer);
-    spotlight_constant_buffer_description.Usage = D3D11_USAGE_DYNAMIC;
-    spotlight_constant_buffer_description.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-    spotlight_constant_buffer_description.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-    D3D11_SUBRESOURCE_DATA spotlight_constant_buffer_srd;
-    spotlight_constant_buffer_srd.pSysMem = &spotlight_data;
-    spotlight_constant_buffer_srd.SysMemPitch = 0;
-    spotlight_constant_buffer_srd.SysMemSlicePitch = 0;
-    device->CreateBuffer(&spotlight_constant_buffer_description, &spotlight_constant_buffer_srd, &spotlight_constant_buffer);
+    CreateCBuffer(&spotlight_constant_buffer, spotlight_data);
     context->PSSetConstantBuffers(5, 1, &spotlight_constant_buffer);
 
     ID3D11Buffer* bg_color_constant_buffer;
-    D3D11_BUFFER_DESC bg_color_constant_buffer_description = { 0 };
-    bg_color_constant_buffer_description.ByteWidth = sizeof(ColorBuffer);
-    bg_color_constant_buffer_description.Usage = D3D11_USAGE_DYNAMIC;
-    bg_color_constant_buffer_description.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-    bg_color_constant_buffer_description.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-    D3D11_SUBRESOURCE_DATA bg_color_constant_buffer_srd;
-    bg_color_constant_buffer_srd.pSysMem = &background_color_data;
-    bg_color_constant_buffer_srd.SysMemPitch = 0;
-    bg_color_constant_buffer_srd.SysMemSlicePitch = 0;
-    device->CreateBuffer(&bg_color_constant_buffer_description, &bg_color_constant_buffer_srd, &bg_color_constant_buffer);
+    CreateCBuffer(&bg_color_constant_buffer, bg_color_constant_buffer);
     context->PSSetConstantBuffers(6, 1, &bg_color_constant_buffer);
 
 #pragma endregion
@@ -809,7 +748,7 @@ int main(int, char**)
 
     CleanupDeviceD3D();
     ::DestroyWindow(hwnd);
-    ::UnregisterClass(wc.lpszClassName, wc.hInstance);
+    ::UnregisterClass(wc.lpszClassName, wc.hInstance);    
 
     return 0;
 }
