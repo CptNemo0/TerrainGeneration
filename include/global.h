@@ -25,10 +25,10 @@ using Microsoft::WRL::ComPtr;
 const int WIDTH = 1600;
 const int HEIGHT = 900;
 
-static ID3D11Device* device = NULL;
-static ID3D11DeviceContext* context = NULL;
-static IDXGISwapChain* swap_chain = NULL;
-static ID3D11RenderTargetView* main_render_target_view = NULL;
+ID3D11Device* device = NULL;
+ID3D11DeviceContext* context = NULL;
+IDXGISwapChain* swap_chain = NULL;
+ID3D11RenderTargetView* main_render_target_view = NULL;
 
 ID3D11Texture2D* depth_stencil_texture = nullptr;
 ID3D11DepthStencilState* depth_stencil_state = nullptr;
@@ -42,20 +42,6 @@ D3D11_VIEWPORT viewport;
 
 ID3D11RasterizerState* rasterizer_state = nullptr;
 D3D11_RASTERIZER_DESC rasterizer_description;
-
-//const float triangle_vertices[]
-//{
-//    //position==========| normals=========|
-//      0.0f ,  1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
-//      1.0f , -1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
-//      -1.0f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
-//};
-
-
-const unsigned int triangle_indices[]
-{
-    0, 1, 2,
-};
 
 const float rectangle_vertices[]
 {
@@ -142,7 +128,6 @@ void CleanupDeviceD3D()
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
-// Win32 message handler
 LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam))
@@ -171,6 +156,7 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
     return ::DefWindowProc(hWnd, msg, wParam, lParam);
 }
+
 
 static void InitDepthStencilBuffer()
 {
@@ -272,6 +258,7 @@ static void RenderWireframe()
     context->RSSetState(rasterizer_state);
 }
 
+
 template <typename T>
 static void SetCBuffer(ID3D11Buffer* buffer, T& data)
 {
@@ -310,10 +297,21 @@ static void CreateShaders(Shader& shader, LPCWSTR path)
     device->CreatePixelShader(shader.ps_blob->GetBufferPointer(), shader.ps_blob->GetBufferSize(), nullptr, &(shader.pixel_shader));
 }
 
+static void CreateCShader(CShader& shader, LPCWSTR path)
+{
+    CompileShader(&(shader.cs_blob), path);
+    device->CreateComputeShader(shader.cs_blob->GetBufferPointer(), shader.cs_blob->GetBufferSize(), nullptr, &(shader.compute_shader));
+}
+
 static void BindShaders(Shader& shader)
 {
     context->VSSetShader(shader.vertex_shader, nullptr, 0);
     context->PSSetShader(shader.pixel_shader, nullptr, 0);
+}
+
+static void BindCShader(CShader& shader)
+{
+    context->CSSetShader(shader.compute_shader, nullptr, 0);
 }
 
 #endif GLABAL_H

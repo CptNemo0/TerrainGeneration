@@ -1,8 +1,6 @@
 #ifndef CONSTANT_BUFFER_STRUCTS_H
 #define CONSTANT_BUFFER_STRUCTS_H
 
-#include "../include/global.h"
-#include<glm/glm.hpp>
 #include<DirectXMath.h>
 
 struct ColorBuffer

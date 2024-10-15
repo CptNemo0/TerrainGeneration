@@ -224,6 +224,57 @@ int main(int, char**)
     D3D11_SUBRESOURCE_DATA screen_quad_index_srd = { screen_quad_indices, 0, 0 };
     device->CreateBuffer(&screen_quad_index_buffer_description, &screen_quad_index_srd, &screen_quad_index_buffer);
     // Screen Quad Buffers End
+
+    // Compute buffers
+    // Position
+    
+    ID3D11UnorderedAccessView* cleaner_uav = nullptr;
+    ID3D11ShaderResourceView* cleaner_srv = nullptr;
+
+    ID3D11Buffer* output_buffer = nullptr;
+    ID3D11UnorderedAccessView* output_uav = nullptr;
+    ID3D11ShaderResourceView* output_srv = nullptr;
+    D3D11_SUBRESOURCE_DATA output_srd;
+
+    D3D11_UNORDERED_ACCESS_VIEW_DESC output_uav_description;
+    D3D11_BUFFER_DESC output_buffer_description;
+    D3D11_SHADER_RESOURCE_VIEW_DESC output_srv_description;
+    ZeroMemory(&output_buffer_description, sizeof(D3D11_BUFFER_DESC));
+    ZeroMemory(&output_uav_description, sizeof(D3D11_UNORDERED_ACCESS_VIEW_DESC));
+    ZeroMemory(&output_srv_description, sizeof(D3D11_SHADER_RESOURCE_VIEW_DESC));
+    output_buffer_description.Usage = D3D11_USAGE_DEFAULT;
+    output_buffer_description.BindFlags = D3D11_BIND_UNORDERED_ACCESS | D3D11_BIND_SHADER_RESOURCE;
+    output_buffer_description.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+    output_buffer_description.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+    output_buffer_description.StructureByteStride = sizeof(Vertex) ;
+    output_buffer_description.ByteWidth = sizeof(Vertex) * resolution * resolution;
+    output_srd.pSysMem = &(triangle_vertices[0]);
+    output_srd.SysMemPitch = 0;
+    output_srd.SysMemSlicePitch = 0;
+    output_uav_description.Format = DXGI_FORMAT_UNKNOWN;
+    output_uav_description.ViewDimension = D3D11_UAV_DIMENSION_BUFFER;
+    output_uav_description.Buffer.FirstElement = 0;
+    output_uav_description.Buffer.NumElements = resolution * resolution;
+    output_srv_description.Format = DXGI_FORMAT_UNKNOWN;
+    output_srv_description.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
+    output_srv_description.Buffer.FirstElement = 0;
+    output_srv_description.Buffer.NumElements = resolution * resolution;
+
+    if (static_cast<int>(device->CreateBuffer(&output_buffer_description, &output_srd, &output_buffer)))
+    {
+        std::cout << "Buffer creation failed\n";
+    }
+    if (static_cast<int>(device->CreateUnorderedAccessView(output_buffer, &output_uav_description, &output_uav)))
+    {
+        std::cout << " UAV creation failed\n";
+    }
+    if (static_cast<int>(device->CreateShaderResourceView(output_buffer, &output_srv_description, &output_srv)))
+    {
+        std::cout<<"SRV creation failed\n";
+    }
+
+    // Normals
+
 #pragma endregion
 
 #pragma region Textures
@@ -392,6 +443,10 @@ int main(int, char**)
     Shader light_shader;
     CreateShaders(light_shader, L"../res/Shaders/Lighting.hlsl");
 
+    CShader example_shader;
+    CreateCShader(example_shader, L"../res/Shaders/ExampleCS.hlsl");
+    
+
 #pragma endregion
 
 #pragma region ConstantBuffers
@@ -551,8 +606,14 @@ int main(int, char**)
         ULONGLONG current_time = GetTickCount64();
         float t = (current_time - start_time) * 0.001f;
         grid_data.time = t;
-
         
+        BindCShader(example_shader);
+        context->CSSetUnorderedAccessViews(0, 1, &output_uav, nullptr);
+        context->CSSetShaderResources(0, 1, &output_srv);
+        context->Dispatch(1, 1, 1);
+        context->CSSetUnorderedAccessViews(0, 1, &cleaner_uav, nullptr);
+        context->CSSetShaderResources(0, 1, &cleaner_srv);
+
 #pragma region Shadow map
 
         ID3D11RenderTargetView* shadowmap_render_targets[2] = { depth_render_target_view, lightspace_position_render_target_view };
@@ -604,12 +665,14 @@ int main(int, char**)
         context->IASetIndexBuffer(rectangle_index_buffer, DXGI_FORMAT_R32_UINT, 0);
         context->DrawIndexed(6, 0, 0);
         
+        context->Flush();
         BindShaders(gbuffer_shader);
         
         context->PSSetConstantBuffers(0, 1, &color_constant_buffer);
         context->VSSetConstantBuffers(1, 1, &view_proj_constant_buffer);
         context->VSSetConstantBuffers(2, 1, &camera_constant_buffer);
         context->VSSetConstantBuffers(3, 1, &model_matrix_constant_buffer);
+        context->VSSetShaderResources(0, 1, &output_srv);
         SetCBuffer(color_constant_buffer, color_data);
         SetCBuffer(view_proj_constant_buffer, view_proj_data);
         SetCBuffer(camera_constant_buffer, camera_data);
