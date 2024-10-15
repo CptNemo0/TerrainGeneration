@@ -647,6 +647,7 @@ int main(int, char**)
                     float y = DirectX::XMScalarSin(b);
                     float z = -1.0 * DirectX::XMScalarSin(a) * DirectX::XMScalarCos(b);
                     camera_position_iv = DirectX::XMVectorSet(camera_distance * x, camera_distance * y, camera_distance * z, 1.0f);
+                    camera_data.camera_position = camera_position_iv;
                     view_proj_data.view_matrix = DirectX::XMMatrixLookAtLH(camera_position_iv, center_position_iv, up_direction_iv);
                 }
             }
@@ -665,62 +666,13 @@ int main(int, char**)
         
         //======================== Logic
         D3D11_MAPPED_SUBRESOURCE mapped_resource;
-        if (color_constant_buffer)
-        {
-            context->Map(color_constant_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource);
-            ColorBuffer* data_ptr = (ColorBuffer*)mapped_resource.pData;
-            *data_ptr = color_data;  // Update the data
-            context->Unmap(color_constant_buffer, 0);
-        }
         
-        if (view_proj_constant_buffer)
-        {
-            context->Map(view_proj_constant_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource);
-            ViewProjBuffer* data_ptr = (ViewProjBuffer*)mapped_resource.pData;
-            *data_ptr = view_proj_data;
-            context->Unmap(view_proj_constant_buffer, 0);
-        }
-
-        if (camera_constant_buffer)
-        {
-            context->Map(camera_constant_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource);
-            CameraBuffer* data_ptr = (CameraBuffer*)mapped_resource.pData;
-            camera_data.camera_position = camera_position_iv;
-            *data_ptr = camera_data;
-            context->Unmap(camera_constant_buffer, 0);
-        }
-
-        if (mm_constant_buffer)
-        {
-            context->Map(mm_constant_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource);
-            ModelMatrixBuffer* data_ptr = (ModelMatrixBuffer*)mapped_resource.pData;
-            *data_ptr = mm_data;
-            context->Unmap(mm_constant_buffer, 0);
-        }
-
-        if (grid_constant_buffer)
-        {
-            context->Map(grid_constant_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource);
-            GridBuffer* data_ptr = (GridBuffer*)mapped_resource.pData;
-            *data_ptr = grid_data;
-            context->Unmap(grid_constant_buffer, 0);
-        }
-
-        if (bg_color_constant_buffer)
-        {
-            context->Map(bg_color_constant_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource);
-            ColorBuffer* data_ptr = (ColorBuffer*)mapped_resource.pData;
-            *data_ptr = background_color_data;
-            context->Unmap(bg_color_constant_buffer, 0);
-        }
-
-        if (spotlight_constant_buffer)
-        {
-            context->Map(spotlight_constant_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource);
-            SpotlightBuffer* data_ptr = (SpotlightBuffer*)mapped_resource.pData;
-            *data_ptr = spotlight_data;
-            context->Unmap(spotlight_constant_buffer, 0);
-        }
+        SetCBuffer(color_constant_buffer, color_data);
+        SetCBuffer(camera_constant_buffer, camera_data);
+        SetCBuffer(mm_constant_buffer, mm_data);
+        SetCBuffer(grid_constant_buffer, grid_data);
+        SetCBuffer(bg_color_constant_buffer, background_color_data);
+        SetCBuffer(spotlight_constant_buffer, spotlight_data);
 
 #pragma region Render Depth For Shadow Map
         {
@@ -730,19 +682,11 @@ int main(int, char**)
             context->ClearRenderTargetView(lightspace_position_render_target_view, white);
             context->ClearDepthStencilView(depth_stencil_view, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0.0f);
             context->OMSetRenderTargets(2, render_targets, depth_stencil_view);
-            
-            
-            
+
             context->VSSetShader(sm_vertex_shader, nullptr, 0);
             context->PSSetShader(sm_pixel_shader, nullptr, 0);
 
-            if (view_proj_constant_buffer)
-            {
-                context->Map(view_proj_constant_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource);
-                ViewProjBuffer* data_ptr = (ViewProjBuffer*)mapped_resource.pData;
-                *data_ptr = lightspace_data;
-                context->Unmap(view_proj_constant_buffer, 0);
-            }
+            SetCBuffer(view_proj_constant_buffer, lightspace_data);
 
             context->IASetVertexBuffers(0, 1, &rectangle_vertex_buffer, &stride, &offset);
             context->IASetIndexBuffer(rectangle_index_buffer, DXGI_FORMAT_R32_UINT, 0);
@@ -754,13 +698,7 @@ int main(int, char**)
             context->VSSetConstantBuffers(1, 1, &view_proj_constant_buffer);
             context->DrawIndexed(3 * triangle_faces.size(), 0, 0);
 
-            if (view_proj_constant_buffer)
-            {
-                context->Map(view_proj_constant_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource);
-                ViewProjBuffer* data_ptr = (ViewProjBuffer*)mapped_resource.pData;
-                *data_ptr = view_proj_data;
-                context->Unmap(view_proj_constant_buffer, 0);
-            }
+            SetCBuffer(view_proj_constant_buffer, view_proj_data);
         }
 #pragma endregion
 
@@ -783,49 +721,32 @@ int main(int, char**)
         
         context->IASetVertexBuffers(0, 1, &rectangle_vertex_buffer, &stride, &offset);
         context->IASetIndexBuffer(rectangle_index_buffer, DXGI_FORMAT_R32_UINT, 0);
-        context->VSSetConstantBuffers(1, 1, &view_proj_constant_buffer);
         context->DrawIndexed(6, 0, 0);
 
         context->VSSetShader(g_vertex_shader, nullptr, 0);
         context->PSSetShader(g_pixel_shader, nullptr, 0);
 
-        rasterizer_description.FillMode = D3D11_FILL_WIREFRAME;
-        device->CreateRasterizerState(&rasterizer_description, &rasterizer_state);
-        context->RSSetState(rasterizer_state);
-
         context->IASetVertexBuffers(0, 1, &triangle_vertex_buffer, &stride, &offset);
         context->IASetIndexBuffer(triangle_index_buffer, DXGI_FORMAT_R32_UINT, 0);
-        context->VSSetConstantBuffers(1, 1, &view_proj_constant_buffer);
         context->DrawIndexed(3 * triangle_faces.size(), 0, 0);
         
-        rasterizer_description.FillMode = D3D11_FILL_SOLID;
-        device->CreateRasterizerState(&rasterizer_description, &rasterizer_state);
-        context->RSSetState(rasterizer_state);
-
         // Render quad
         context->OMSetRenderTargets(1, &fxaa_render_target_view, depth_stencil_view);
         context->ClearRenderTargetView(fxaa_render_target_view, bgc);
         context->ClearDepthStencilView(depth_stencil_view, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0.0f);
         
-        if (view_proj_constant_buffer)
-        {
-            context->Map(view_proj_constant_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource);
-            ViewProjBuffer* data_ptr = (ViewProjBuffer*)mapped_resource.pData;
-            *data_ptr = lightspace_data;
-            context->Unmap(view_proj_constant_buffer, 0);
-        }
+        SetCBuffer(view_proj_constant_buffer, lightspace_data);
 
         context->VSSetShader(light_vertex_shader, nullptr, 0);
         context->PSSetShader(light_pixel_shader, nullptr, 0);
-        
-        context->IASetVertexBuffers(0, 1, &screen_quad_vertex_buffer, &stride, &offset);
-        context->IASetIndexBuffer(screen_quad_index_buffer, DXGI_FORMAT_R32_UINT, 0);
         context->PSSetShaderResources(0, 1, &position_shader_resource_view);
         context->PSSetShaderResources(1, 1, &normal_shader_resource_view);
         context->PSSetShaderResources(2, 1, &color_shader_resource_view);
         context->PSSetShaderResources(3, 1, &depth_shader_resource_view);
         context->PSSetShaderResources(4, 1, &lightspace_position_shader_resource_view);
 
+        context->IASetVertexBuffers(0, 1, &screen_quad_vertex_buffer, &stride, &offset);
+        context->IASetIndexBuffer(screen_quad_index_buffer, DXGI_FORMAT_R32_UINT, 0);
         context->DrawIndexed(6, 0, 0);
 
         // postprocessing
@@ -836,11 +757,10 @@ int main(int, char**)
 
         context->VSSetShader(fxaa_vertex_shader, nullptr, 0);
         context->PSSetShader(fxaa_pixel_shader, nullptr, 0);
+        context->PSSetShaderResources(0, 1, &fxaa_shader_resource_view);
 
         context->IASetVertexBuffers(0, 1, &screen_quad_vertex_buffer, &stride, &offset);
         context->IASetIndexBuffer(screen_quad_index_buffer, DXGI_FORMAT_R32_UINT, 0);
-        context->PSSetShaderResources(0, 1, &fxaa_shader_resource_view);
-        
         context->DrawIndexed(6, 0, 0);
 
         //======================== End Logic

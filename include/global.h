@@ -253,4 +253,33 @@ static void InitRasterizer()
     device->CreateRasterizerState(&rasterizer_description, &rasterizer_state);
 }
 
+static void RenderSolid()
+{
+    rasterizer_description.FillMode = D3D11_FILL_SOLID;
+    device->CreateRasterizerState(&rasterizer_description, &rasterizer_state);
+    context->RSSetState(rasterizer_state);
+}
+
+static void RenderWireframe()
+{
+    rasterizer_description.FillMode = D3D11_FILL_WIREFRAME;
+    device->CreateRasterizerState(&rasterizer_description, &rasterizer_state);
+    context->RSSetState(rasterizer_state);
+}
+
+template <typename T>
+static void SetCBuffer(ID3D11Buffer* buffer, T& data)
+{
+    if (!buffer) [[unlikely]]
+    {
+        return;
+    }
+
+    D3D11_MAPPED_SUBRESOURCE mapped_resource;
+    context->Map(buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource);
+    T* data_ptr = (T*)mapped_resource.pData;
+    *data_ptr = data;
+    context->Unmap(buffer, 0);
+}
+
 #endif GLABAL_H
