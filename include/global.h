@@ -195,21 +195,21 @@ static void InitDepthStencilBuffer()
     depth_stencil_view_description.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
     depth_stencil_view_description.Texture2D.MipSlice = 0;
 
-    if (HRESULT result = device->CreateTexture2D(&depth_stencil_texture_description, nullptr, &depth_stencil_texture); result)
+    if (static_cast<int>(device->CreateTexture2D(&depth_stencil_texture_description, nullptr, &depth_stencil_texture)))
     {
-        std::cout << "result: " << result << ". Depth stencil texture creation failed." << std::endl;
+        std::cout << "Depth stencil texture creation failed." << std::endl;
         exit(1);
     }
 
-    if (HRESULT result = device->CreateDepthStencilState(&depth_stencil_description, &depth_stencil_state); result)
+    if (static_cast<int>(device->CreateDepthStencilState(&depth_stencil_description, &depth_stencil_state)))
     {
-        std::cout << "result: " << result << ". Depth stencil state creation failed." << std::endl;
+        std::cout << "Depth stencil state creation failed." << std::endl;
         exit(1);
     }
 
-    if (HRESULT result = device->CreateDepthStencilView(depth_stencil_texture, &depth_stencil_view_description, &depth_stencil_view); result)
+    if (static_cast<int>(device->CreateDepthStencilView(depth_stencil_texture, &depth_stencil_view_description, &depth_stencil_view)))
     {
-        std::cout << "result: " << result << ". Depth stencil view creation failed." << std::endl;
+        std::cout << "Depth stencil view creation failed." << std::endl;
         exit(1);
     }
 }
@@ -276,8 +276,7 @@ static void SetCBuffer(ID3D11Buffer* buffer, T& data)
 
 template <typename T>
 static void CreateCBuffer(ID3D11Buffer** buffer, T& data)
-{   
-
+{
     D3D11_BUFFER_DESC description = { 0 };
     description.ByteWidth = sizeof(T);
     description.Usage = D3D11_USAGE_DYNAMIC;

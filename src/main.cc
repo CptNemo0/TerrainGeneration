@@ -95,7 +95,7 @@ int main(int, char**)
     
 #pragma endregion     
     
-#pragma region Resources Initialization
+#pragma region Buffers
 
     std::vector<Vertex> triangle_vertices
     {
@@ -104,7 +104,7 @@ int main(int, char**)
         {-1.0f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f}
     };
 
-    int resolution = 32 * 10;
+    int resolution = 32 * 5;
     // Generate vertices 
     {
         triangle_vertices.clear();
@@ -359,19 +359,19 @@ int main(int, char**)
     ID3D11Texture2D* position_texture;
     ID3D11RenderTargetView* position_render_target_view;
     ID3D11ShaderResourceView* position_shader_resource_view;
-    if (device->CreateTexture2D(&texture_description, nullptr, &position_texture))
+    if (static_cast<int>(device->CreateTexture2D(&texture_description, nullptr, &position_texture)))
     {
         std::cout << "Creating position texture failed\n";
         exit(1);
     }
 
-    if (device->CreateShaderResourceView(position_texture, nullptr, &position_shader_resource_view))
+    if (static_cast<int>(device->CreateShaderResourceView(position_texture, nullptr, &position_shader_resource_view)))
     {
         std::cout << "Creating position_shader_resource_view failed\n";
         exit(1);
     }
 
-    if (device->CreateRenderTargetView(position_texture, nullptr, &position_render_target_view))
+    if (static_cast<int>(device->CreateRenderTargetView(position_texture, nullptr, &position_render_target_view)))
     {
         std::cout << "Creating position_shader_resource_view failed\n";
         exit(1);
@@ -380,19 +380,19 @@ int main(int, char**)
     ID3D11Texture2D* normal_texture;
     ID3D11RenderTargetView* normal_render_target_view;
     ID3D11ShaderResourceView* normal_shader_resource_view;
-    if (device->CreateTexture2D(&texture_description, nullptr, &normal_texture))
+    if (static_cast<int>(device->CreateTexture2D(&texture_description, nullptr, &normal_texture)))
     {
         std::cout << "Creating normal texture failed\n";
         exit(1);
     }
 
-    if (device->CreateShaderResourceView(normal_texture, nullptr, &normal_shader_resource_view))
+    if (static_cast<int>(device->CreateShaderResourceView(normal_texture, nullptr, &normal_shader_resource_view)))
     {
         std::cout << "Creating normal_shader_resource_view failed\n";
         exit(1);
     }
 
-    if (device->CreateRenderTargetView(normal_texture, nullptr, &normal_render_target_view))
+    if (static_cast<int>(device->CreateRenderTargetView(normal_texture, nullptr, &normal_render_target_view)))
     {
         std::cout << "Creating normal_shader_resource_view failed\n";
         exit(1);
@@ -401,19 +401,19 @@ int main(int, char**)
     ID3D11Texture2D* color_texture;
     ID3D11RenderTargetView* color_render_target_view;
     ID3D11ShaderResourceView* color_shader_resource_view;
-    if (device->CreateTexture2D(&texture_description, nullptr, &color_texture))
+    if (static_cast<int>(device->CreateTexture2D(&texture_description, nullptr, &color_texture)))
     {
         std::cout << "Creating color texture failed\n";
         exit(1);
     }
 
-    if (device->CreateShaderResourceView(color_texture, nullptr, &color_shader_resource_view))
+    if (static_cast<int>(device->CreateShaderResourceView(color_texture, nullptr, &color_shader_resource_view)))
     {
         std::cout << "Creating color_shader_resource_view failed\n";
         exit(1);
     }
 
-    if (device->CreateRenderTargetView(color_texture, nullptr, &color_render_target_view))
+    if (static_cast<int>(device->CreateRenderTargetView(color_texture, nullptr, &color_render_target_view)))
     {
         std::cout << "Creating color_shader_resource_view failed\n";
         exit(1);
@@ -422,19 +422,19 @@ int main(int, char**)
     ID3D11Texture2D* lightspace_position_texture;
     ID3D11RenderTargetView* lightspace_position_render_target_view;
     ID3D11ShaderResourceView* lightspace_position_shader_resource_view;
-    if (device->CreateTexture2D(&texture_description, nullptr, &lightspace_position_texture))
+    if (static_cast<int>(device->CreateTexture2D(&texture_description, nullptr, &lightspace_position_texture)))
     {
         std::cout << "Creating lightspace_position texture failed\n";
         exit(1);
     }
 
-    if (device->CreateShaderResourceView(lightspace_position_texture, nullptr, &lightspace_position_shader_resource_view))
+    if (static_cast<int>(device->CreateShaderResourceView(lightspace_position_texture, nullptr, &lightspace_position_shader_resource_view)))
     {
         std::cout << "Creating lightspace_position_shader_resource_view failed\n";
         exit(1);
     }
 
-    if (device->CreateRenderTargetView(lightspace_position_texture, nullptr, &lightspace_position_render_target_view))
+    if (static_cast<int>(device->CreateRenderTargetView(lightspace_position_texture, nullptr, &lightspace_position_render_target_view)))
     {
         std::cout << "Creating lightspace_position_shader_resource_view failed\n";
         exit(1);
@@ -443,19 +443,19 @@ int main(int, char**)
     ID3D11Texture2D* fxaa_texture;
     ID3D11RenderTargetView* fxaa_render_target_view;
     ID3D11ShaderResourceView* fxaa_shader_resource_view;
-    if (device->CreateTexture2D(&texture_description, nullptr, &fxaa_texture))
+    if (static_cast<int>(device->CreateTexture2D(&texture_description, nullptr, &fxaa_texture)))
     {
         std::cout << "Creating fxaa texture failed\n";
         exit(1);
     }
 
-    if (device->CreateShaderResourceView(fxaa_texture, nullptr, &fxaa_shader_resource_view))
+    if (static_cast<int>(device->CreateShaderResourceView(fxaa_texture, nullptr, &fxaa_shader_resource_view)))
     {
         std::cout << "Creating fxaa_shader_resource_view failed\n";
         exit(1);
     }
 
-    if (device->CreateRenderTargetView(fxaa_texture, nullptr, &fxaa_render_target_view))
+    if (static_cast<int>(device->CreateRenderTargetView(fxaa_texture, nullptr, &fxaa_render_target_view)))
     {
         std::cout << "Creating fxaa_shader_resource_view failed\n";
         exit(1);
@@ -474,19 +474,19 @@ int main(int, char**)
     ID3D11Texture2D* depth_texture;
     ID3D11RenderTargetView* depth_render_target_view;
     ID3D11ShaderResourceView* depth_shader_resource_view;
-    if (device->CreateTexture2D(&texture_description, nullptr, &depth_texture))
+    if (static_cast<int>(device->CreateTexture2D(&texture_description, nullptr, &depth_texture)))
     {
         std::cout << "Creating depth texture failed\n";
         exit(1);
     }
 
-    if (device->CreateShaderResourceView(depth_texture, nullptr, &depth_shader_resource_view))
+    if (static_cast<int>(device->CreateShaderResourceView(depth_texture, nullptr, &depth_shader_resource_view)))
     {
         std::cout << "Creating depth_shader_resource_view failed\n";
         exit(1);
     }
 
-    if (device->CreateRenderTargetView(depth_texture, nullptr, &depth_render_target_view))
+    if (static_cast<int>(device->CreateRenderTargetView(depth_texture, nullptr, &depth_render_target_view)))
     {
         std::cout << "Creating depth_shader_resource_view failed\n";
         exit(1);
@@ -550,8 +550,8 @@ int main(int, char**)
     spotlight_data.direction = DirectX::XMVector4Normalize({ -3.0f, -5.0f, -3.0f, 1.0f });
     spotlight_data.diffuse_color = DirectX::XMVECTOR({ 1.0f, 1.0f, 1.0f, 1.0f });
     spotlight_data.specular_color = DirectX::XMVECTOR({ 1.0f, 1.0f, 1.0f, 1.0f });
-    spotlight_data.cut_off = 0.91f;
-    spotlight_data.outer_cut_off = 0.82f;
+    spotlight_data.cut_off = 0.59f;
+    spotlight_data.outer_cut_off = 0.52f;
     spotlight_data.intensity = 100.0f;
 
     ViewProjBuffer lightspace_data;
@@ -611,6 +611,7 @@ int main(int, char**)
     // Main loop
     bool done = false;
     bool rotate = false;
+    bool render_wireframe = false;
     POINT prev_mouse_pos = { 0, 0 };
     while (!done)
     {
@@ -690,28 +691,30 @@ int main(int, char**)
         SetCBuffer(time_constant_buffer, time_data);
         context->CSSetUnorderedAccessViews(0, 1, &output_uav, nullptr);
         context->CSSetShaderResources(0, 1, &output_srv);
-        context->Dispatch(100, 1, 1);
+        context->Dispatch(25, 1, 1);
         context->CSSetUnorderedAccessViews(0, 1, &cleaner_uav, nullptr);
         context->CSSetShaderResources(0, 1, &cleaner_srv);
+
+#pragma region Recalculate Normals
 
         BindCShader(zero_normal_shader);
         context->CSSetUnorderedAccessViews(0, 1, &output_uav, nullptr);
         context->CSSetShaderResources(0, 1, &output_srv);
-        context->Dispatch(100, 1, 1);
+        context->Dispatch(25, 1, 1);
         context->CSSetUnorderedAccessViews(0, 1, &cleaner_uav, nullptr);
         context->CSSetShaderResources(0, 1, &cleaner_srv);
-
-        //Recalculate normals
 
         BindCShader(recalculate_normal_shader);
         context->CSSetUnorderedAccessViews(0, 1, &output_uav, nullptr);
         for (int i = 0; i < 8; i++)
         {
             context->CSSetShaderResources(0, 1, &(face_srvs[i]));
-            context->Dispatch(100, 1, 1);
+            context->Dispatch(25, 1, 1);
             context->CSSetShaderResources(0, 1, &cleaner_srv);
         }
         context->CSSetUnorderedAccessViews(0, 1, &cleaner_uav, nullptr);
+
+#pragma endregion
 
 #pragma region Shadow map
 
@@ -736,6 +739,7 @@ int main(int, char**)
         context->IASetIndexBuffer(triangle_index_buffer, DXGI_FORMAT_R32_UINT, 0);
         context->DrawIndexed(3 * triangle_faces.size(), 0, 0);
         context->VSSetShaderResources(0, 1, &cleaner_srv);
+
 #pragma endregion
         
 #pragma region GBuffer
@@ -776,11 +780,17 @@ int main(int, char**)
         SetCBuffer(camera_constant_buffer, camera_data);
         SetCBuffer(model_matrix_constant_buffer, model_matrix_data);
         
+        if (render_wireframe)
+        {
+            RenderWireframe();
+        }
+        
         context->IASetVertexBuffers(0, 1, &triangle_vertex_buffer, &stride, &offset);
         context->IASetIndexBuffer(triangle_index_buffer, DXGI_FORMAT_R32_UINT, 0);
         context->DrawIndexed(3 * triangle_faces.size(), 0, 0);
-
+        RenderSolid();
         context->VSSetShaderResources(0, 1, &cleaner_srv);
+
 #pragma endregion
         
 #pragma region Light
@@ -824,18 +834,15 @@ int main(int, char**)
         }
 
         ImGui::SliderFloat("Offset", &grid_data.offset, 0.1f, 5.0f);
-        ImGui::SliderFloat("Width", &grid_data.width, 0.01f, 0.2f);
+        ImGui::SliderFloat("Width", &grid_data.width, 0.001f, 0.2f);
 
         float pos[3] = {
             DirectX::XMVectorGetByIndex(spotlight_data.direction, 0),
             DirectX::XMVectorGetByIndex(spotlight_data.direction, 1),
             DirectX::XMVectorGetByIndex(spotlight_data.direction, 2)
         };
-        if (ImGui::DragFloat3("Spotlight", pos, 0.1f))
-        {
-            spotlight_data.direction = DirectX::XMVectorSet(pos[0], pos[1], pos[2], 1.0f);
-            lightspace_data.view_matrix = DirectX::XMMatrixLookAtLH(spotlight_data.position, DirectX::XMVectorAdd(spotlight_data.position, spotlight_data.direction), up_direction_iv);
-        }
+        
+        ImGui::Checkbox("Render wireframe", &render_wireframe);
 
         ImGui::End();
 
