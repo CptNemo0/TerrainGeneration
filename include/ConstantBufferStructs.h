@@ -51,5 +51,11 @@ struct LightSpaceBuffer
 	DirectX::XMMATRIX projection_matrix;
 };
 
+struct TimeBuffer
+{
+	float time;
+	float p1, p2, p3;
+};
+
 #endif // !CONSTANT_BUFFER_STRUCTS_H
 

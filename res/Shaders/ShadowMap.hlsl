@@ -29,10 +29,19 @@ cbuffer ModelMatrixBuffer : register(b1)
     float4x4 ti_model_matrix;
 };
 
-PixelInput VSMain(VertexInput input)
+struct Vertex
+{
+    float3 position;
+    float3 normal;
+};
+
+StructuredBuffer<Vertex> output_buffer : register(t0);
+
+PixelInput VSMain(VertexInput input, uint id : SV_VertexID)
 {
     PixelInput output;
-    float4 world_position = mul(model_matrix, input.position);
+    float4 position = float4(output_buffer[id].position, 1.0);
+    float4 world_position = mul(model_matrix, position);
     float4x4 light_space_matrix = mul(projection_matrix, view_matrix);
     output.projected_position = mul(light_space_matrix, world_position);
     return output;

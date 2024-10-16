@@ -56,7 +56,7 @@ PixelInput VSMain(VertexInput input, uint id : SV_VertexID)
     PixelInput output;
 
     float4 position = float4(output_buffer[id].position, 1.0);
-    float4 normal = float4(output_buffer[id].normal, 1.0);
+    float4 normal = float4(normalize(output_buffer[id].normal), 1.0);
     
     float4 world_position = mul(model_matrix, position);
     float4 view_position = mul(view_matrix, world_position);
@@ -67,17 +67,14 @@ PixelInput VSMain(VertexInput input, uint id : SV_VertexID)
     float4 view_direction = normalize(difference);
     float view_dot_product = dot(view_direction.xyz, normal.xyz);
     
-    float4 N = mul(ti_model_matrix, normal);
-    N = normalize(N);
-    
     if (view_dot_product < 0)
     {
-        N = -N;
+        normal.xyz *= -1.0;
     }
     
     output.projected_position = proj_position;
     output.world_position = world_position;
-    output.normal = N;
+    output.normal = normal;
     
     return output;
 }
@@ -88,6 +85,5 @@ PixelOutput PSMain(PixelInput input)
     output.color = float4(color.rgb, 1.0);
     output.position = input.world_position;
     output.normal = input.normal * 0.5 + 0.5;
-    output.normal.a = 1.0f;
     return output;
 }

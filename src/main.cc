@@ -104,7 +104,7 @@ int main(int, char**)
         {-1.0f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f}
     };
 
-    int resolution = 32;
+    int resolution = 32 * 10;
     // Generate vertices 
     {
         triangle_vertices.clear();
@@ -135,7 +135,6 @@ int main(int, char**)
         { 0, 1, 2 }
     };
 
-    //Generate faces
     {
         triangle_faces.clear();
 
@@ -150,18 +149,45 @@ int main(int, char**)
                 if (up)
                 {
                     up = false;
-                    triangle_faces.emplace_back(idx, idx + 1, idx + resolution);
-                    triangle_faces.emplace_back(idx + 1, idx + 1 + resolution, idx + 1 + resolution - 1);
+                    triangle_faces.emplace_back(idx + resolution, idx, idx + 1);
+                    triangle_faces.emplace_back(idx + 1 + resolution, idx + resolution, idx + 1);
                 }
                 else
                 {
                     up = true;
-                    triangle_faces.emplace_back(idx, idx + resolution + 1, idx + resolution);
-                    triangle_faces.emplace_back(idx, idx + 1, idx + resolution + 1);
+                    triangle_faces.emplace_back(idx + resolution + 1, idx + resolution, idx);
+                    triangle_faces.emplace_back(idx + resolution + 1, idx, idx + 1);
                 }
             }
         }
     }
+
+    std::vector<std::pair<int, int>> offsets
+    {
+        {0, 0}, {0, 1}, {0, 2}, {0, 3},
+        {1, 0}, {1, 1}, {1, 2}, {1, 3}
+    };
+    std::vector<std::vector<Face>> faces_groups;
+
+    //Groups of faces for normal recalculation
+    {
+        int faces_per_row = (resolution - 1) * 2;
+        for (int h = 0; h < offsets.size(); h++)
+        {
+            faces_groups.push_back({});
+
+            for (int i = offsets[h].first; i < resolution - 1; i += 2)
+            {
+                for (int j = offsets[h].second; j < faces_per_row; j += 4)
+                {
+                    int idx = i * faces_per_row + j;
+                    faces_groups[h].push_back(triangle_faces[idx]);
+                }
+            }
+        }
+    }
+
+    std::cout << faces_groups[0].size() << std::endl;
     //
     
     ID3D11Buffer* triangle_vertex_buffer = nullptr;
@@ -226,14 +252,15 @@ int main(int, char**)
     // Screen Quad Buffers End
 
     // Compute buffers
-    // Position
     
+    //Output buffer
     ID3D11UnorderedAccessView* cleaner_uav = nullptr;
     ID3D11ShaderResourceView* cleaner_srv = nullptr;
 
     ID3D11Buffer* output_buffer = nullptr;
     ID3D11UnorderedAccessView* output_uav = nullptr;
     ID3D11ShaderResourceView* output_srv = nullptr;
+
     D3D11_SUBRESOURCE_DATA output_srd;
 
     D3D11_UNORDERED_ACCESS_VIEW_DESC output_uav_description;
@@ -272,8 +299,48 @@ int main(int, char**)
     {
         std::cout<<"SRV creation failed\n";
     }
+    //Output buffer
 
-    // Normals
+    //Face buffers
+    
+    std::vector<ID3D11Buffer*> face_buffers(8, nullptr);
+    std::vector<ID3D11ShaderResourceView*> face_srvs(8, nullptr);
+    D3D11_SUBRESOURCE_DATA face_srd;
+
+    for (int i = 0; i < faces_groups.size(); i++)
+    {
+        D3D11_BUFFER_DESC buffer_description;
+        D3D11_SHADER_RESOURCE_VIEW_DESC srv_description;
+        ZeroMemory(&buffer_description, sizeof(D3D11_BUFFER_DESC));
+        ZeroMemory(&srv_description, sizeof(D3D11_SHADER_RESOURCE_VIEW_DESC));
+        buffer_description.Usage = D3D11_USAGE_DEFAULT;
+        buffer_description.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+        buffer_description.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+        buffer_description.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+        buffer_description.StructureByteStride = sizeof(Face);
+        buffer_description.ByteWidth = sizeof(Face) * faces_groups[i].size();
+
+        face_srd.pSysMem = &(faces_groups[i][0]);
+        face_srd.SysMemPitch = 0;
+        face_srd.SysMemSlicePitch = 0;
+        
+        srv_description.Format = DXGI_FORMAT_UNKNOWN;
+        srv_description.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
+        srv_description.Buffer.FirstElement = 0;
+        srv_description.Buffer.NumElements = faces_groups[i].size();
+
+        if (static_cast<int>(device->CreateBuffer(&buffer_description, &face_srd, &face_buffers[i])))
+        {
+            std::cout << "Buffer creation failed\n";
+        }
+        
+        if (static_cast<int>(device->CreateShaderResourceView(face_buffers[i], &srv_description, &face_srvs[i])))
+        {
+            std::cout << "SRV creation failed\n";
+        }
+    }
+
+    //Face buffers
 
 #pragma endregion
 
@@ -446,7 +513,11 @@ int main(int, char**)
     CShader example_shader;
     CreateCShader(example_shader, L"../res/Shaders/ExampleCS.hlsl");
     
+    CShader zero_normal_shader;
+    CreateCShader(zero_normal_shader, L"../res/Shaders/ZeroNormals.hlsl");
 
+    CShader recalculate_normal_shader;
+    CreateCShader(recalculate_normal_shader, L"../res/Shaders/RecalculateNormals.hlsl");
 #pragma endregion
 
 #pragma region ConstantBuffers
@@ -487,6 +558,9 @@ int main(int, char**)
     lightspace_data.view_matrix = DirectX::XMMatrixLookAtLH(spotlight_data.position, DirectX::XMVectorAdd(spotlight_data.position, spotlight_data.direction), up_direction_iv);
     lightspace_data.projection_matrix = DirectX::XMMatrixOrthographicOffCenterLH(-8.0f, 8.0f, -4.5f, 4.5f, 0.1f, 100.0f);
 
+    TimeBuffer time_data;
+    time_data.time = 0.0;
+
     ID3D11Buffer* color_constant_buffer = nullptr;
     CreateCBuffer(&color_constant_buffer, color_data);
 
@@ -507,6 +581,9 @@ int main(int, char**)
     
     ID3D11Buffer* bg_color_constant_buffer;
     CreateCBuffer(&bg_color_constant_buffer, background_color_data);
+
+    ID3D11Buffer* time_constant_buffer;
+    CreateCBuffer(&time_constant_buffer, time_data);
 
 #pragma endregion
     
@@ -606,13 +683,35 @@ int main(int, char**)
         ULONGLONG current_time = GetTickCount64();
         float t = (current_time - start_time) * 0.001f;
         grid_data.time = t;
-        
+        time_data.time = t;
+
         BindCShader(example_shader);
+        context->CSSetConstantBuffers(0, 1, &time_constant_buffer);
+        SetCBuffer(time_constant_buffer, time_data);
         context->CSSetUnorderedAccessViews(0, 1, &output_uav, nullptr);
         context->CSSetShaderResources(0, 1, &output_srv);
-        context->Dispatch(1, 1, 1);
+        context->Dispatch(100, 1, 1);
         context->CSSetUnorderedAccessViews(0, 1, &cleaner_uav, nullptr);
         context->CSSetShaderResources(0, 1, &cleaner_srv);
+
+        BindCShader(zero_normal_shader);
+        context->CSSetUnorderedAccessViews(0, 1, &output_uav, nullptr);
+        context->CSSetShaderResources(0, 1, &output_srv);
+        context->Dispatch(100, 1, 1);
+        context->CSSetUnorderedAccessViews(0, 1, &cleaner_uav, nullptr);
+        context->CSSetShaderResources(0, 1, &cleaner_srv);
+
+        //Recalculate normals
+
+        BindCShader(recalculate_normal_shader);
+        context->CSSetUnorderedAccessViews(0, 1, &output_uav, nullptr);
+        for (int i = 0; i < 8; i++)
+        {
+            context->CSSetShaderResources(0, 1, &(face_srvs[i]));
+            context->Dispatch(100, 1, 1);
+            context->CSSetShaderResources(0, 1, &cleaner_srv);
+        }
+        context->CSSetUnorderedAccessViews(0, 1, &cleaner_uav, nullptr);
 
 #pragma region Shadow map
 
@@ -628,7 +727,7 @@ int main(int, char**)
         context->VSSetConstantBuffers(1, 1, &model_matrix_constant_buffer);
         SetCBuffer(view_proj_constant_buffer, lightspace_data);
         SetCBuffer(model_matrix_constant_buffer, model_matrix_data);
-
+        context->VSSetShaderResources(0, 1, &output_srv);
         context->IASetVertexBuffers(0, 1, &rectangle_vertex_buffer, &stride, &offset);
         context->IASetIndexBuffer(rectangle_index_buffer, DXGI_FORMAT_R32_UINT, 0);
         context->DrawIndexed(6, 0, 0);
@@ -636,7 +735,7 @@ int main(int, char**)
         context->IASetVertexBuffers(0, 1, &triangle_vertex_buffer, &stride, &offset);
         context->IASetIndexBuffer(triangle_index_buffer, DXGI_FORMAT_R32_UINT, 0);
         context->DrawIndexed(3 * triangle_faces.size(), 0, 0);
-
+        context->VSSetShaderResources(0, 1, &cleaner_srv);
 #pragma endregion
         
 #pragma region GBuffer
@@ -667,7 +766,6 @@ int main(int, char**)
         
         context->Flush();
         BindShaders(gbuffer_shader);
-        
         context->PSSetConstantBuffers(0, 1, &color_constant_buffer);
         context->VSSetConstantBuffers(1, 1, &view_proj_constant_buffer);
         context->VSSetConstantBuffers(2, 1, &camera_constant_buffer);
@@ -682,6 +780,7 @@ int main(int, char**)
         context->IASetIndexBuffer(triangle_index_buffer, DXGI_FORMAT_R32_UINT, 0);
         context->DrawIndexed(3 * triangle_faces.size(), 0, 0);
 
+        context->VSSetShaderResources(0, 1, &cleaner_srv);
 #pragma endregion
         
 #pragma region Light
