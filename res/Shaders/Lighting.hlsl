@@ -138,6 +138,6 @@ float4 PSMain(PixelInput input) : SV_Target
         visibility = 0.1;
     }
     
-    float4 after_light = (ambient_light + visibility * (diffuse * sl_diffuse_color + spec * sl_specular_color) * attenuation * intensity) * normal;
+    float4 after_light = (ambient_light + visibility * (diffuse * sl_diffuse_color + spec * sl_specular_color) * attenuation * intensity) * color;
     return after_light;
 }

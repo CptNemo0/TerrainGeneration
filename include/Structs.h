@@ -1,3 +1,5 @@
+#ifndef STRUCTS_H
+#define STRUCTS_H
 struct Vertex
 {
     float x;
@@ -22,3 +24,4 @@ struct LinearConstraint
     int idx_b;
     float distance;
 };
+#endif

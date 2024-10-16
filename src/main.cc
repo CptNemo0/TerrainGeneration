@@ -1,4 +1,8 @@
 #include "../include/global.h"
+#include "../include/Shader.h"
+#include "../include/ConstantBufferStructs.h"
+#include "../include/Structs.h"
+#include "../include/Cloth.h"
 
 #include <d3d11.h>
 #include <tchar.h>
@@ -15,9 +19,6 @@
 #include <imgui_impl_win32.h>
 #include <imgui_impl_dx11.h>
 
-#include "../include/Shader.h"
-#include "../include/ConstantBufferStructs.h"
-#include "../include/Structs.h"
 
 
 // Main code
@@ -96,127 +97,8 @@ int main(int, char**)
 #pragma endregion     
     
 #pragma region Buffers
-
-    std::vector<Vertex> triangle_vertices
-    {
-        {0.0f ,  1.0f, 0.0f, 0.0f, 0.0f, 1.0f},
-        {1.0f , -1.0f, 0.0f, 0.0f, 0.0f, 1.0f},
-        {-1.0f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f}
-    };
-
-    int resolution = 32 * 5;
-    // Generate vertices 
-    {
-        triangle_vertices.clear();
-
-        
-        float offset = 2.0f / (static_cast<float>(resolution) - 1.0f);
-
-        float start_x = -1.0f;
-        float start_y = 1.0f;
-
-        for (int i = 0; i < resolution; i++)
-        {
-            for (int j = 0; j < resolution; j++)
-            {
-                triangle_vertices.emplace_back(start_x + j * offset,
-                                               start_y - i * offset,
-                                               0.0f,
-                                               0.0f,
-                                               0.0f,
-                                               1.0f);
-            }
-        }
-    }
-    //
-
-    std::vector<Face> triangle_faces
-    {
-        { 0, 1, 2 }
-    };
-
-    {
-        triangle_faces.clear();
-
-        bool up = true;
-
-        for (int i = 0; i < resolution - 1; i++)
-        {
-            for (int j = 0; j < resolution - 1; j++)
-            {
-                int idx = resolution * i + j;
-                
-                if (up)
-                {
-                    up = false;
-                    triangle_faces.emplace_back(idx + resolution, idx, idx + 1);
-                    triangle_faces.emplace_back(idx + 1 + resolution, idx + resolution, idx + 1);
-                }
-                else
-                {
-                    up = true;
-                    triangle_faces.emplace_back(idx + resolution + 1, idx + resolution, idx);
-                    triangle_faces.emplace_back(idx + resolution + 1, idx, idx + 1);
-                }
-            }
-        }
-    }
-
-    std::vector<std::pair<int, int>> offsets
-    {
-        {0, 0}, {0, 1}, {0, 2}, {0, 3},
-        {1, 0}, {1, 1}, {1, 2}, {1, 3}
-    };
-    std::vector<std::vector<Face>> faces_groups;
-
-    //Groups of faces for normal recalculation
-    {
-        int faces_per_row = (resolution - 1) * 2;
-        for (int h = 0; h < offsets.size(); h++)
-        {
-            faces_groups.push_back({});
-
-            for (int i = offsets[h].first; i < resolution - 1; i += 2)
-            {
-                for (int j = offsets[h].second; j < faces_per_row; j += 4)
-                {
-                    int idx = i * faces_per_row + j;
-                    faces_groups[h].push_back(triangle_faces[idx]);
-                }
-            }
-        }
-    }
-
-    std::cout << faces_groups[0].size() << std::endl;
-    //
-    
-    ID3D11Buffer* triangle_vertex_buffer = nullptr;
-    D3D11_BUFFER_DESC traingle_buffer_description;
-    D3D11_SUBRESOURCE_DATA traingle_vertex_srd;
-
-    ZeroMemory(&traingle_buffer_description, sizeof(D3D11_BUFFER_DESC));
-    ZeroMemory(&traingle_vertex_srd, sizeof(D3D11_SUBRESOURCE_DATA));
-
-    traingle_buffer_description.ByteWidth = sizeof(Vertex) * triangle_vertices.size();
-    traingle_buffer_description.Usage = D3D11_USAGE_DEFAULT;
-    traingle_buffer_description.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-    traingle_buffer_description.CPUAccessFlags = 0;
-    traingle_buffer_description.MiscFlags = 0;
-    traingle_buffer_description.StructureByteStride = sizeof(Vertex);
-
-    traingle_vertex_srd.pSysMem = &(triangle_vertices[0]);
-    traingle_vertex_srd.SysMemPitch = 0;
-    traingle_vertex_srd.SysMemSlicePitch = 0;
-
-    device->CreateBuffer(&traingle_buffer_description, &traingle_vertex_srd, &triangle_vertex_buffer);
-
-    ID3D11Buffer* triangle_index_buffer;
-    D3D11_BUFFER_DESC triangle_index_buffer_description = { 0 };
-    triangle_index_buffer_description.ByteWidth = sizeof(Face) * triangle_faces.size();
-    triangle_index_buffer_description.BindFlags = D3D11_BIND_INDEX_BUFFER;
-    D3D11_SUBRESOURCE_DATA triangle_index_srd = { &(triangle_faces[0]), 0, 0 };
-    device->CreateBuffer(&triangle_index_buffer_description, &triangle_index_srd, &triangle_index_buffer);
-
+    ID3D11UnorderedAccessView* cleaner_uav = nullptr;
+    ID3D11ShaderResourceView* cleaner_srv = nullptr;
     // Rectangle Buffers Buffer
     ID3D11Buffer* rectangle_vertex_buffer;
     D3D11_BUFFER_DESC rectangle_buffer_description = { 0 };
@@ -250,97 +132,6 @@ int main(int, char**)
     D3D11_SUBRESOURCE_DATA screen_quad_index_srd = { screen_quad_indices, 0, 0 };
     device->CreateBuffer(&screen_quad_index_buffer_description, &screen_quad_index_srd, &screen_quad_index_buffer);
     // Screen Quad Buffers End
-
-    // Compute buffers
-    
-    //Output buffer
-    ID3D11UnorderedAccessView* cleaner_uav = nullptr;
-    ID3D11ShaderResourceView* cleaner_srv = nullptr;
-
-    ID3D11Buffer* output_buffer = nullptr;
-    ID3D11UnorderedAccessView* output_uav = nullptr;
-    ID3D11ShaderResourceView* output_srv = nullptr;
-
-    D3D11_SUBRESOURCE_DATA output_srd;
-
-    D3D11_UNORDERED_ACCESS_VIEW_DESC output_uav_description;
-    D3D11_BUFFER_DESC output_buffer_description;
-    D3D11_SHADER_RESOURCE_VIEW_DESC output_srv_description;
-    ZeroMemory(&output_buffer_description, sizeof(D3D11_BUFFER_DESC));
-    ZeroMemory(&output_uav_description, sizeof(D3D11_UNORDERED_ACCESS_VIEW_DESC));
-    ZeroMemory(&output_srv_description, sizeof(D3D11_SHADER_RESOURCE_VIEW_DESC));
-    output_buffer_description.Usage = D3D11_USAGE_DEFAULT;
-    output_buffer_description.BindFlags = D3D11_BIND_UNORDERED_ACCESS | D3D11_BIND_SHADER_RESOURCE;
-    output_buffer_description.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-    output_buffer_description.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
-    output_buffer_description.StructureByteStride = sizeof(Vertex) ;
-    output_buffer_description.ByteWidth = sizeof(Vertex) * resolution * resolution;
-    output_srd.pSysMem = &(triangle_vertices[0]);
-    output_srd.SysMemPitch = 0;
-    output_srd.SysMemSlicePitch = 0;
-    output_uav_description.Format = DXGI_FORMAT_UNKNOWN;
-    output_uav_description.ViewDimension = D3D11_UAV_DIMENSION_BUFFER;
-    output_uav_description.Buffer.FirstElement = 0;
-    output_uav_description.Buffer.NumElements = resolution * resolution;
-    output_srv_description.Format = DXGI_FORMAT_UNKNOWN;
-    output_srv_description.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
-    output_srv_description.Buffer.FirstElement = 0;
-    output_srv_description.Buffer.NumElements = resolution * resolution;
-
-    if (static_cast<int>(device->CreateBuffer(&output_buffer_description, &output_srd, &output_buffer)))
-    {
-        std::cout << "Buffer creation failed\n";
-    }
-    if (static_cast<int>(device->CreateUnorderedAccessView(output_buffer, &output_uav_description, &output_uav)))
-    {
-        std::cout << " UAV creation failed\n";
-    }
-    if (static_cast<int>(device->CreateShaderResourceView(output_buffer, &output_srv_description, &output_srv)))
-    {
-        std::cout<<"SRV creation failed\n";
-    }
-    //Output buffer
-
-    //Face buffers
-    
-    std::vector<ID3D11Buffer*> face_buffers(8, nullptr);
-    std::vector<ID3D11ShaderResourceView*> face_srvs(8, nullptr);
-    D3D11_SUBRESOURCE_DATA face_srd;
-
-    for (int i = 0; i < faces_groups.size(); i++)
-    {
-        D3D11_BUFFER_DESC buffer_description;
-        D3D11_SHADER_RESOURCE_VIEW_DESC srv_description;
-        ZeroMemory(&buffer_description, sizeof(D3D11_BUFFER_DESC));
-        ZeroMemory(&srv_description, sizeof(D3D11_SHADER_RESOURCE_VIEW_DESC));
-        buffer_description.Usage = D3D11_USAGE_DEFAULT;
-        buffer_description.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-        buffer_description.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-        buffer_description.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
-        buffer_description.StructureByteStride = sizeof(Face);
-        buffer_description.ByteWidth = sizeof(Face) * faces_groups[i].size();
-
-        face_srd.pSysMem = &(faces_groups[i][0]);
-        face_srd.SysMemPitch = 0;
-        face_srd.SysMemSlicePitch = 0;
-        
-        srv_description.Format = DXGI_FORMAT_UNKNOWN;
-        srv_description.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
-        srv_description.Buffer.FirstElement = 0;
-        srv_description.Buffer.NumElements = faces_groups[i].size();
-
-        if (static_cast<int>(device->CreateBuffer(&buffer_description, &face_srd, &face_buffers[i])))
-        {
-            std::cout << "Buffer creation failed\n";
-        }
-        
-        if (static_cast<int>(device->CreateShaderResourceView(face_buffers[i], &srv_description, &face_srvs[i])))
-        {
-            std::cout << "SRV creation failed\n";
-        }
-    }
-
-    //Face buffers
 
 #pragma endregion
 
@@ -608,10 +399,20 @@ int main(int, char**)
         DirectX::XMVectorGetW(background_color_data.color) 
     };
 
+    Cloth cloth{ 5, device };
+    cloth.zero_normals_shader_ = &zero_normal_shader;
+    cloth.recalculate_normals_shader_ = &recalculate_normal_shader;
+    cloth.stride_ = stride;
+    cloth.offset_ = offset;
+
     // Main loop
     bool done = false;
     bool rotate = false;
     bool render_wireframe = false;
+
+    bool run_sim = false;
+    bool step_sim = false;
+
     POINT prev_mouse_pos = { 0, 0 };
     while (!done)
     {
@@ -686,36 +487,22 @@ int main(int, char**)
         grid_data.time = t;
         time_data.time = t;
 
-        BindCShader(example_shader);
-        context->CSSetConstantBuffers(0, 1, &time_constant_buffer);
-        SetCBuffer(time_constant_buffer, time_data);
-        context->CSSetUnorderedAccessViews(0, 1, &output_uav, nullptr);
-        context->CSSetShaderResources(0, 1, &output_srv);
-        context->Dispatch(25, 1, 1);
-        context->CSSetUnorderedAccessViews(0, 1, &cleaner_uav, nullptr);
-        context->CSSetShaderResources(0, 1, &cleaner_srv);
-
-#pragma region Recalculate Normals
-
-        BindCShader(zero_normal_shader);
-        context->CSSetUnorderedAccessViews(0, 1, &output_uav, nullptr);
-        context->CSSetShaderResources(0, 1, &output_srv);
-        context->Dispatch(25, 1, 1);
-        context->CSSetUnorderedAccessViews(0, 1, &cleaner_uav, nullptr);
-        context->CSSetShaderResources(0, 1, &cleaner_srv);
-
-        BindCShader(recalculate_normal_shader);
-        context->CSSetUnorderedAccessViews(0, 1, &output_uav, nullptr);
-        for (int i = 0; i < 8; i++)
+        if (run_sim || step_sim)
         {
-            context->CSSetShaderResources(0, 1, &(face_srvs[i]));
-            context->Dispatch(25, 1, 1);
-            context->CSSetShaderResources(0, 1, &cleaner_srv);
+            BindCShader(example_shader);
+            context->CSSetConstantBuffers(0, 1, &time_constant_buffer);
+            SetCBuffer(time_constant_buffer, time_data);
+            context->CSSetUnorderedAccessViews(0, 1, &cloth.output_uav_, nullptr);
+            context->Dispatch(cloth.resolution_multiplier_ * cloth.resolution_multiplier_, 1, 1);
+            context->CSSetUnorderedAccessViews(0, 1, &cleaner_uav, nullptr);
+
+            cloth.TangentUpdate(context);
+            if (step_sim)
+            {
+                step_sim = false;
+            }
         }
-        context->CSSetUnorderedAccessViews(0, 1, &cleaner_uav, nullptr);
-
-#pragma endregion
-
+        
 #pragma region Shadow map
 
         ID3D11RenderTargetView* shadowmap_render_targets[2] = { depth_render_target_view, lightspace_position_render_target_view };
@@ -730,15 +517,12 @@ int main(int, char**)
         context->VSSetConstantBuffers(1, 1, &model_matrix_constant_buffer);
         SetCBuffer(view_proj_constant_buffer, lightspace_data);
         SetCBuffer(model_matrix_constant_buffer, model_matrix_data);
-        context->VSSetShaderResources(0, 1, &output_srv);
+        context->VSSetShaderResources(0, 1, &cloth.output_srv_);
         context->IASetVertexBuffers(0, 1, &rectangle_vertex_buffer, &stride, &offset);
         context->IASetIndexBuffer(rectangle_index_buffer, DXGI_FORMAT_R32_UINT, 0);
         context->DrawIndexed(6, 0, 0);
 
-        context->IASetVertexBuffers(0, 1, &triangle_vertex_buffer, &stride, &offset);
-        context->IASetIndexBuffer(triangle_index_buffer, DXGI_FORMAT_R32_UINT, 0);
-        context->DrawIndexed(3 * triangle_faces.size(), 0, 0);
-        context->VSSetShaderResources(0, 1, &cleaner_srv);
+        cloth.Draw(context);
 
 #pragma endregion
         
@@ -774,7 +558,7 @@ int main(int, char**)
         context->VSSetConstantBuffers(1, 1, &view_proj_constant_buffer);
         context->VSSetConstantBuffers(2, 1, &camera_constant_buffer);
         context->VSSetConstantBuffers(3, 1, &model_matrix_constant_buffer);
-        context->VSSetShaderResources(0, 1, &output_srv);
+        context->VSSetShaderResources(0, 1, &cloth.output_srv_);
         SetCBuffer(color_constant_buffer, color_data);
         SetCBuffer(view_proj_constant_buffer, view_proj_data);
         SetCBuffer(camera_constant_buffer, camera_data);
@@ -785,11 +569,8 @@ int main(int, char**)
             RenderWireframe();
         }
         
-        context->IASetVertexBuffers(0, 1, &triangle_vertex_buffer, &stride, &offset);
-        context->IASetIndexBuffer(triangle_index_buffer, DXGI_FORMAT_R32_UINT, 0);
-        context->DrawIndexed(3 * triangle_faces.size(), 0, 0);
+        cloth.Draw(context);
         RenderSolid();
-        context->VSSetShaderResources(0, 1, &cleaner_srv);
 
 #pragma endregion
         
@@ -843,6 +624,26 @@ int main(int, char**)
         };
         
         ImGui::Checkbox("Render wireframe", &render_wireframe);
+        
+        if(ImGui::Button("Stop simulation"))
+        {
+            run_sim = false;
+        }
+        
+        if (ImGui::Button("Run simulation"))
+        {
+            run_sim = true;
+        }
+        
+        if (ImGui::Button("Step through simulation"))
+        {
+            if (run_sim)
+            {
+                run_sim = false;
+            }
+
+            step_sim = true;
+        }
 
         ImGui::End();
 
