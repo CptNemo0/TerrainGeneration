@@ -379,7 +379,7 @@ int main(int, char**)
     mass_data.imass = 1.0f/ mass_data.mass;
 
     ComplianceBuffer structural_compliance_data;
-    structural_compliance_data.alpha = 0.001f;
+    structural_compliance_data.alpha = 0.0001f;
 
     ComplianceBuffer bending_compliance_data;
     bending_compliance_data.alpha = 0.2f;
@@ -451,7 +451,7 @@ int main(int, char**)
         DirectX::XMVectorGetW(background_color_data.color) 
     };
 
-    Cloth cloth{ 1, device };
+    Cloth cloth{ 2, device };
     cloth.zero_normals_shader_ = &zero_normal_shader;
     cloth.recalculate_normals_shader_ = &recalculate_normal_shader;
     cloth.stride_ = stride;
@@ -720,13 +720,8 @@ int main(int, char**)
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
 
-        ImGui::Begin("Color");
+        ImGui::Begin("Menu");
         
-        if (ImGui::ColorPicker4("Pick a color", bgc))
-        {
-            background_color_data.color = DirectX::XMVECTOR({ bgc[0], bgc[1], bgc[2], 1.0f });
-        }
-
         ImGui::SliderFloat("Offset", &grid_data.offset, 0.1f, 5.0f);
         ImGui::SliderFloat("Width", &grid_data.width, 0.001f, 0.2f);
 

@@ -503,9 +503,30 @@ Cloth::Cloth(int resolution, ID3D11Device* device)
     pin2.x = vertices_[resolution_ - 1].x;
     pin2.y = vertices_[resolution_ - 1].y;
     pin2.z = vertices_[resolution_ - 1].z;
+    
+    PinConstraint pin3;
+    pin3.idx = (resolution_ - 1) * 0.25f;
+    pin3.x = vertices_[pin3.idx].x;
+    pin3.y = vertices_[pin3.idx].y;
+    pin3.z = vertices_[pin3.idx].z;
+
+    PinConstraint pin4;
+    pin4.idx = (resolution_ - 1) * 0.75f;
+    pin4.x = vertices_[pin4.idx].x;
+    pin4.y = vertices_[pin4.idx].y;
+    pin4.z = vertices_[pin4.idx].z;
+
+    PinConstraint pin5;
+    pin5.idx = (resolution_ - 1) * 0.5f;
+    pin5.x = vertices_[pin5.idx].x;
+    pin5.y = vertices_[pin5.idx].y;
+    pin5.z = vertices_[pin5.idx].z;
 
     pin_constraints_.push_back(pin1);
     pin_constraints_.push_back(pin2);
+    pin_constraints_.push_back(pin3);
+    pin_constraints_.push_back(pin4);
+    pin_constraints_.push_back(pin5);
 
     pc_buffer_description_.Usage = D3D11_USAGE_DEFAULT;
     pc_buffer_description_.BindFlags = D3D11_BIND_SHADER_RESOURCE;
