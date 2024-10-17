@@ -42,11 +42,30 @@ public:
     D3D11_UNORDERED_ACCESS_VIEW_DESC output_uav_description_;
     D3D11_SHADER_RESOURCE_VIEW_DESC output_srv_description_;
 
+    ID3D11Buffer* previous_positions_ = nullptr;
+    ID3D11UnorderedAccessView* previous_positions_uav_ = nullptr;
+    D3D11_SUBRESOURCE_DATA previous_positions_srd_;
+    D3D11_BUFFER_DESC previous_positions_buffer_description_;
+    D3D11_UNORDERED_ACCESS_VIEW_DESC previous_positions_uav_description_;
+
+    ID3D11Buffer* velocity_buffer_ = nullptr;
+    ID3D11UnorderedAccessView* velocity_uav_ = nullptr;
+    D3D11_SUBRESOURCE_DATA velocity_srd_;
+    D3D11_BUFFER_DESC velocity_buffer_description_;
+    D3D11_UNORDERED_ACCESS_VIEW_DESC velocity_uav_description_;
+
     std::vector<ID3D11Buffer*> faces_buffers_;
     std::vector<ID3D11ShaderResourceView*> faces_srvs_;
     D3D11_SUBRESOURCE_DATA faces_srd_;
     D3D11_BUFFER_DESC faces_buffer_description_;
     D3D11_SHADER_RESOURCE_VIEW_DESC faces_srv_description_;
+
+    std::vector<std::vector<LinearConstraint>> structural_constraints_;
+    std::vector<ID3D11Buffer*> sc_buffers_;
+    std::vector<ID3D11ShaderResourceView*> sc_srvs_;
+    D3D11_SUBRESOURCE_DATA sc_srd_;
+    D3D11_BUFFER_DESC sc_buffer_description_;
+    D3D11_SHADER_RESOURCE_VIEW_DESC sc_srv_description_;
 
     ID3D11UnorderedAccessView* cleaner_uav_ = nullptr;
     ID3D11ShaderResourceView* cleaner_srv_ = nullptr;

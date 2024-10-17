@@ -23,5 +23,12 @@ struct LinearConstraint
     int idx_a;
     int idx_b;
     float distance;
+    float padding;
+};
+
+struct PinConstraint
+{
+    float x, y, z;
+    int idx;
 };
 #endif

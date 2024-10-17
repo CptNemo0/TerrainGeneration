@@ -19,8 +19,6 @@
 #include <imgui_impl_win32.h>
 #include <imgui_impl_dx11.h>
 
-
-
 // Main code
 int main(int, char**)
 {
@@ -309,6 +307,15 @@ int main(int, char**)
 
     CShader recalculate_normal_shader;
     CreateCShader(recalculate_normal_shader, L"../res/Shaders/RecalculateNormals.hlsl");
+
+    CShader update_position_shader;
+    CreateCShader(update_position_shader, L"../res/Shaders/UpdatePositions.hlsl");
+
+    CShader update_velocity_shader;
+    CreateCShader(update_velocity_shader, L"../res/Shaders/UpdateVelocity.hlsl");
+
+    CShader enforce_structural_shader;
+    CreateCShader(enforce_structural_shader, L"../res/Shaders/EnforceStructural.hlsl");
 #pragma endregion
 
 #pragma region ConstantBuffers
@@ -352,6 +359,25 @@ int main(int, char**)
     TimeBuffer time_data;
     time_data.time = 0.0;
 
+    DeltaTimeBuffer dt_data;
+    dt_data.dt = (1.0f / 60.0f);
+    dt_data.idt = 60.0f;
+    dt_data.p1 = 0.0f;
+    dt_data.p2 = 0.0f;
+
+    GravityBuffer gravity_data;
+    gravity_data.x = 0.0f;
+    gravity_data.y = -10.0f;
+    gravity_data.z = 0.0f;
+    gravity_data.p1 = 0.0f;
+
+    MassBuffer mass_data;
+    mass_data.mass = 1.0f;
+    mass_data.imass = 1.0f;
+
+    ComplianceBuffer compliance_data;
+    compliance_data.alpha = 0.95f;
+
     ID3D11Buffer* color_constant_buffer = nullptr;
     CreateCBuffer(&color_constant_buffer, color_data);
 
@@ -376,6 +402,17 @@ int main(int, char**)
     ID3D11Buffer* time_constant_buffer;
     CreateCBuffer(&time_constant_buffer, time_data);
 
+    ID3D11Buffer* delta_time_constant_buffer;
+    CreateCBuffer(&delta_time_constant_buffer, dt_data);
+
+    ID3D11Buffer* gravity_constant_buffer;
+    CreateCBuffer(&gravity_constant_buffer, gravity_data);
+
+    ID3D11Buffer* compliance_constant_buffer;
+    CreateCBuffer(&compliance_constant_buffer, compliance_data);
+
+    ID3D11Buffer* mass_constant_buffer;
+    CreateCBuffer(&mass_constant_buffer, mass_data);
 #pragma endregion
     
     // initialize input layout
@@ -399,7 +436,7 @@ int main(int, char**)
         DirectX::XMVectorGetW(background_color_data.color) 
     };
 
-    Cloth cloth{ 5, device };
+    Cloth cloth{ 1, device };
     cloth.zero_normals_shader_ = &zero_normal_shader;
     cloth.recalculate_normals_shader_ = &recalculate_normal_shader;
     cloth.stride_ = stride;
@@ -410,8 +447,10 @@ int main(int, char**)
     bool rotate = false;
     bool render_wireframe = false;
 
-    bool run_sim = false;
+    bool run_sim = true;
     bool step_sim = false;
+
+    int quality_steps = 5;
 
     POINT prev_mouse_pos = { 0, 0 };
     while (!done)
@@ -489,12 +528,55 @@ int main(int, char**)
 
         if (run_sim || step_sim)
         {
-            BindCShader(example_shader);
-            context->CSSetConstantBuffers(0, 1, &time_constant_buffer);
-            SetCBuffer(time_constant_buffer, time_data);
-            context->CSSetUnorderedAccessViews(0, 1, &cloth.output_uav_, nullptr);
-            context->Dispatch(cloth.resolution_multiplier_ * cloth.resolution_multiplier_, 1, 1);
-            context->CSSetUnorderedAccessViews(0, 1, &cleaner_uav, nullptr);
+            for (int i = 0; i < 1; i++)
+            {
+                BindCShader(update_position_shader);
+                context->CSSetConstantBuffers(0, 1, &delta_time_constant_buffer);
+                context->CSSetConstantBuffers(1, 1, &gravity_constant_buffer);
+                context->CSSetConstantBuffers(2, 1, &mass_constant_buffer);
+                SetCBuffer(delta_time_constant_buffer, dt_data);
+                SetCBuffer(gravity_constant_buffer, gravity_data);
+                SetCBuffer(mass_constant_buffer, mass_data);
+                context->CSSetUnorderedAccessViews(0, 1, &cloth.output_uav_, nullptr);
+                context->CSSetUnorderedAccessViews(1, 1, &cloth.previous_positions_uav_, nullptr);
+                context->CSSetUnorderedAccessViews(2, 1, &cloth.velocity_uav_, nullptr);
+                context->Dispatch(cloth.resolution_multiplier_* cloth.resolution_multiplier_, 1, 1);
+
+                BindCShader(update_velocity_shader);
+                context->CSSetConstantBuffers(0, 1, &delta_time_constant_buffer);
+                context->CSSetConstantBuffers(1, 1, &gravity_constant_buffer);
+                context->CSSetConstantBuffers(2, 1, &mass_constant_buffer);
+                SetCBuffer(delta_time_constant_buffer, dt_data);
+                SetCBuffer(gravity_constant_buffer, gravity_data);
+                SetCBuffer(mass_constant_buffer, mass_data);
+                context->CSSetUnorderedAccessViews(0, 1, &cloth.output_uav_, nullptr);
+                context->CSSetUnorderedAccessViews(1, 1, &cloth.previous_positions_uav_, nullptr);
+                context->CSSetUnorderedAccessViews(2, 1, &cloth.velocity_uav_, nullptr);
+                context->Dispatch(cloth.resolution_multiplier_ * cloth.resolution_multiplier_, 1, 1);
+
+                
+
+                //BindCShader(enforce_structural_shader);
+                //context->CSSetConstantBuffers(0, 1, &delta_time_constant_buffer);
+                //context->CSSetConstantBuffers(1, 1, &compliance_constant_buffer);
+                //context->CSSetConstantBuffers(2, 1, &mass_constant_buffer);
+                //SetCBuffer(delta_time_constant_buffer, dt_data);
+                //SetCBuffer(compliance_constant_buffer, compliance_data);
+                //SetCBuffer(mass_constant_buffer, mass_data);
+                //context->CSSetUnorderedAccessViews(0, 1, &cloth.output_uav_, nullptr);
+                //for (int i = 0; i < 8; i++)
+                //{
+                //    int x_dim = static_cast<int>(ceil(cloth.structural_constraints_[i].size() / 1024.0f));
+                //    std::cout << x_dim << std::endl;
+                //    
+                //    context->CSSetShaderResources(0, 1, &(cloth.sc_srvs_[i]));
+                //    context->Dispatch(x_dim, 1, 1);
+                //    context->CSSetShaderResources(0, 1, &cloth.cleaner_srv_);
+                //}
+                //context->CSSetUnorderedAccessViews(0, 1, &cleaner_uav, nullptr);
+
+            }
+            
 
             cloth.TangentUpdate(context);
             if (step_sim)

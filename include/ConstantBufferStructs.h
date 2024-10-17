@@ -57,5 +57,33 @@ struct TimeBuffer
 	float p1, p2, p3;
 };
 
+struct DeltaTimeBuffer
+{
+	float dt;
+	float idt;
+	float p1, p2;
+};
+
+struct GravityBuffer
+{
+	float x;
+	float y;
+	float z;
+	float p1;
+};
+
+struct ComplianceBuffer
+{
+	float alpha;
+	float p1, p2, p3;
+};
+
+struct MassBuffer
+{
+	float mass;
+	float imass;
+	float p1, p2;
+};
+
 #endif // !CONSTANT_BUFFER_STRUCTS_H
 
