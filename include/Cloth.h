@@ -67,6 +67,13 @@ public:
     D3D11_BUFFER_DESC sc_buffer_description_;
     D3D11_SHADER_RESOURCE_VIEW_DESC sc_srv_description_;
 
+    std::vector<std::vector<LinearConstraint>> bending_constraints_;
+    std::vector<ID3D11Buffer*> bending_buffers_;
+    std::vector<ID3D11ShaderResourceView*> bending_srvs_;
+    D3D11_SUBRESOURCE_DATA bending_srd_;
+    D3D11_BUFFER_DESC bending_buffer_description_;
+    D3D11_SHADER_RESOURCE_VIEW_DESC bending_srv_description_;
+
     std::vector<PinConstraint> pin_constraints_;
     ID3D11Buffer* pc_buffer_;
     ID3D11ShaderResourceView* pc_srvs_;

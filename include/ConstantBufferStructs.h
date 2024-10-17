@@ -61,7 +61,8 @@ struct DeltaTimeBuffer
 {
 	float dt;
 	float idt;
-	float p1, p2;
+	float t;
+	float p1;
 };
 
 struct GravityBuffer
@@ -83,6 +84,14 @@ struct MassBuffer
 	float mass;
 	float imass;
 	float p1, p2;
+};
+
+struct WindBuffer
+{
+	float strength_mul;
+	float x;
+	float y;
+	float z;
 };
 
 #endif // !CONSTANT_BUFFER_STRUCTS_H

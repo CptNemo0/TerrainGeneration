@@ -4,7 +4,8 @@ Cloth::Cloth(int resolution, ID3D11Device* device)
 {
 	resolution_multiplier_ = resolution;
 	resolution_ = 32 * resolution_multiplier_;
-    
+	//resolution_ = 4;
+   
 	ZeroMemory(&vertex_buffer_description_, sizeof(D3D11_BUFFER_DESC));
 	ZeroMemory(&index_buffer_description_, sizeof(D3D11_BUFFER_DESC));
 	ZeroMemory(&output_buffer_description_, sizeof(D3D11_BUFFER_DESC));
@@ -18,6 +19,8 @@ Cloth::Cloth(int resolution, ID3D11Device* device)
 	ZeroMemory(&faces_srv_description_, sizeof(D3D11_SHADER_RESOURCE_VIEW_DESC));
     ZeroMemory(&sc_buffer_description_, sizeof(D3D11_BUFFER_DESC));
     ZeroMemory(&sc_srv_description_, sizeof(D3D11_SHADER_RESOURCE_VIEW_DESC));
+    ZeroMemory(&bending_buffer_description_, sizeof(D3D11_BUFFER_DESC));
+    ZeroMemory(&bending_srv_description_, sizeof(D3D11_SHADER_RESOURCE_VIEW_DESC));
     ZeroMemory(&pc_buffer_description_, sizeof(D3D11_BUFFER_DESC));
     ZeroMemory(&pc_srv_description_, sizeof(D3D11_SHADER_RESOURCE_VIEW_DESC));
 
@@ -243,9 +246,8 @@ Cloth::Cloth(int resolution, ID3D11Device* device)
         }
     }
 
-    //red
 
-    float edge_len = 1.0f / static_cast<float>(resolution_ - 1);
+    float edge_len = 2.0f / static_cast<float>(resolution_ -1 );
     float d_len = edge_len * sqrtf(2.0f);
 
     for (int i = 0; i < 8 ; i++)
@@ -253,87 +255,115 @@ Cloth::Cloth(int resolution, ID3D11Device* device)
         structural_constraints_.push_back({});
     }
     
+    //RED
     for (int i = 0; i < resolution_; i++)
+    {
+        for (int j = 0; j < resolution_ - 1; j+=2)
+        {
+            int idx = i * resolution_ + j;
+            LinearConstraint c;
+            c.idx_a = idx;
+            c.idx_b = idx + 1;
+            c.distance = edge_len;
+            structural_constraints_[0].push_back(c);
+        }
+    }
+
+    //YELLOW
+    for (int i = 0; i < resolution_; i++)
+    {
+        for (int j = 1; j < resolution_ - 1; j += 2)
+        {
+            int idx = i * resolution_ + j;
+            LinearConstraint c;
+            c.idx_a = idx;
+            c.idx_b = idx + 1;
+            c.distance = edge_len;
+            structural_constraints_[1].push_back(c);
+        }
+    }
+
+    //GREEN
+    for (int i = 0; i < resolution_ - 1; i+=2)
     {
         for (int j = 0; j < resolution_; j++)
         {
-            int idx_a = i * resolution_ + j;
+            int idx = i * resolution_ + j;
+            LinearConstraint c;
+            c.idx_a = idx;
+            c.idx_b = idx + resolution_;
+            c.distance = edge_len;
+            structural_constraints_[2].push_back(c);
+        }
+    }
 
-            if (j + 1 < resolution_)
-            {
-                LinearConstraint c;
-                c.idx_a = idx_a;
-                c.idx_b = idx_a + 1;
-                c.distance = edge_len;
+    //PALE GREEN
+    for (int i = 1; i < resolution_ - 1; i += 2)
+    {
+        for (int j = 0; j < resolution_; j++)
+        {
+            int idx = i * resolution_ + j;
+            LinearConstraint c;
+            c.idx_a = idx;
+            c.idx_b = idx + resolution_;
+            c.distance = edge_len;
+            structural_constraints_[3].push_back(c);
+        }
+    }
 
-                if (j & 1)
-                {
-                    structural_constraints_[1].push_back(c); //yellow
-                }
-                else
-                {
-                    structural_constraints_[0].push_back(c); //red
-                }
-            }
+    //DEEP BLUE
+    for (int i = 1; i < resolution_; i += 2)
+    {
+        for (int j = 0; j < resolution_; j += 2)
+        {
+            int idx = i * resolution_ + j;
+            LinearConstraint c;
+            c.idx_a = idx;
+            c.idx_b = idx - resolution_ + 1;
+            c.distance = d_len;
+            structural_constraints_[4].push_back(c);
+        }
+    }
 
-            if ((i + 1) < resolution_)
-            {
-                LinearConstraint c;
-                c.idx_a = idx_a;
-                c.idx_b = idx_a + resolution_;
-                c.distance = edge_len;
+    //BLUE
+    for (int i = 0; i < resolution_ - 1; i += 2)
+    {
+        for (int j = 1; j < resolution_ - 1; j += 2)
+        {
+            int idx = i * resolution_ + j;
+            LinearConstraint c;
+            c.idx_a = idx;
+            c.idx_b = idx + resolution_ + 1;
+            c.distance = d_len;
+            structural_constraints_[5].push_back(c);
+        }
+    }
 
-                if (i & 1)
-                {
-                    structural_constraints_[3].push_back(c); //pale green
-                }
-                else
-                {
-                    structural_constraints_[2].push_back(c); //green
-                }
-            }
+    //PALE BLUE
+    for (int i = 1; i < resolution_ - 1; i += 2)
+    {
+        for (int j = 0; j < resolution_ - 1; j += 2)
+        {
+            int idx = i * resolution_ + j;
+            LinearConstraint c;
+            c.idx_a = idx;
+            c.idx_b = idx + resolution_ + 1;
+            c.distance = d_len;
+            structural_constraints_[6].push_back(c);
+        }
+    }
 
-            if (!(i & 1) && (j & 1))
-            {
-                if (i > 0 && j < resolution_ - 1)
-                {
-                    LinearConstraint c;
-                    c.idx_a = idx_a;
-                    c.idx_b = idx_a - resolution_ + 1;
-                    c.distance = d_len;
-                    structural_constraints_[7].push_back(c); //purple
-                }
-
-                if (i < resolution_ - 1 && j < resolution_ - 1)
-                {
-                    LinearConstraint c;
-                    c.idx_a = idx_a;
-                    c.idx_b = idx_a + resolution_ + 1;
-                    c.distance = d_len;
-                    structural_constraints_[4].push_back(c); //pale blue
-                }
-            }
-
-            if ((i & 1) && !(j & 1))
-            {
-                if (i > 0 && j < resolution_ - 1)
-                {
-                    LinearConstraint c;
-                    c.idx_a = idx_a;
-                    c.idx_b = idx_a - resolution_ + 1;
-                    c.distance = d_len;
-                    structural_constraints_[6].push_back(c); //blue
-                }
-
-                if (i < resolution_ - 1 && j < resolution_ - 1)
-                {
-                    LinearConstraint c;
-                    c.idx_a = idx_a;
-                    c.idx_b = idx_a + resolution_ + 1;
-                    c.distance = d_len;
-                    structural_constraints_[5].push_back(c); //navy
-                }
-            }
+    //PURPLE
+    for (int i = 2; i < resolution_ - 1; i += 2)
+    {
+        for (int j = 2; j < resolution_ - 1; j += 2)
+        {
+            int idx = i * resolution_ + j;
+            LinearConstraint c;
+            c.idx_a = idx;
+            c.idx_b = idx - resolution_ + 1;
+            c.distance = d_len;
+            structural_constraints_[7].push_back(c);
         }
     }
 
@@ -365,6 +395,97 @@ Cloth::Cloth(int resolution, ID3D11Device* device)
         }
 
         if (static_cast<int>(device->CreateShaderResourceView(sc_buffers_[i], &sc_srv_description_, &sc_srvs_[i])))
+        {
+            std::cout << "SRV creation failed\n";
+            exit(1);
+        }
+    }
+
+    for (int i = 0; i < 4; i++)
+    {
+        bending_constraints_.push_back({});
+    }
+
+    for (int i = 0; i < resolution_; i += 2)
+    {
+        for (int j = 0; j < resolution_ - 1; j += 2)
+        {
+            int idx = i * resolution_ + j;
+            LinearConstraint c;
+            c.idx_a = idx;
+            c.idx_b = idx + 1 + resolution_;
+            c.distance = d_len;
+            bending_constraints_[0].push_back(c);
+        }
+    }
+
+    for (int i = 1; i < resolution_; i += 2)
+    {
+        for (int j = 1; j < resolution_ - 1; j += 2)
+        {
+            int idx = i * resolution_ + j;
+            LinearConstraint c;
+            c.idx_a = idx;
+            c.idx_b = idx + 1 - resolution_;
+            c.distance = d_len;
+            bending_constraints_[1].push_back(c);
+        }
+    }
+
+    for (int i = 2; i < resolution_; i += 2)
+    {
+        for (int j = 0; j < resolution_ - 1; j += 2)
+        {
+            int idx = i * resolution_ + j;
+            LinearConstraint c;
+            c.idx_a = idx;
+            c.idx_b = idx + 1 - resolution_;
+            c.distance = d_len;
+            bending_constraints_[2].push_back(c);
+        }
+    }
+    
+    for (int i = 1; i < resolution_ - 1; i += 2)
+    {
+        for (int j = 1; j < resolution_ - 1; j += 2)
+        {
+            int idx = i * resolution_ + j;
+            LinearConstraint c;
+            c.idx_a = idx;
+            c.idx_b = idx + 1 + resolution_;
+            c.distance = d_len;
+            bending_constraints_[3].push_back(c);
+        }
+    }
+
+    for (int i = 0; i < 4; i++)
+    {
+        bending_buffers_.push_back(nullptr);
+        bending_srvs_.push_back(nullptr);
+
+        bending_buffer_description_.Usage = D3D11_USAGE_DEFAULT;
+        bending_buffer_description_.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+        bending_buffer_description_.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+        bending_buffer_description_.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+        bending_buffer_description_.StructureByteStride = sizeof(LinearConstraint);
+        bending_buffer_description_.ByteWidth = sizeof(LinearConstraint) * bending_constraints_[i].size();
+
+        bending_srd_.pSysMem = &(bending_constraints_[i][0]);
+        bending_srd_.SysMemPitch = 0;
+        bending_srd_.SysMemSlicePitch = 0;
+
+        bending_srv_description_.Format = DXGI_FORMAT_UNKNOWN;
+        bending_srv_description_.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
+        bending_srv_description_.Buffer.FirstElement = 0;
+        bending_srv_description_.Buffer.NumElements = bending_constraints_[i].size();
+
+        if (static_cast<int>(device->CreateBuffer(&bending_buffer_description_, &bending_srd_, &bending_buffers_[i])))
+        {
+            std::cout << "Buffer creation failed\n";
+            exit(1);
+        }
+
+        if (static_cast<int>(device->CreateShaderResourceView(bending_buffers_[i], &bending_srv_description_, &bending_srvs_[i])))
         {
             std::cout << "SRV creation failed\n";
             exit(1);
