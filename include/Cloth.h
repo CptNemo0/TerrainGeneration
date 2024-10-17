@@ -67,6 +67,13 @@ public:
     D3D11_BUFFER_DESC sc_buffer_description_;
     D3D11_SHADER_RESOURCE_VIEW_DESC sc_srv_description_;
 
+    std::vector<PinConstraint> pin_constraints_;
+    ID3D11Buffer* pc_buffer_;
+    ID3D11ShaderResourceView* pc_srvs_;
+    D3D11_SUBRESOURCE_DATA pc_srd_;
+    D3D11_BUFFER_DESC pc_buffer_description_;
+    D3D11_SHADER_RESOURCE_VIEW_DESC pc_srv_description_;
+
     ID3D11UnorderedAccessView* cleaner_uav_ = nullptr;
     ID3D11ShaderResourceView* cleaner_srv_ = nullptr;
 

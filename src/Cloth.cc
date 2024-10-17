@@ -18,6 +18,9 @@ Cloth::Cloth(int resolution, ID3D11Device* device)
 	ZeroMemory(&faces_srv_description_, sizeof(D3D11_SHADER_RESOURCE_VIEW_DESC));
     ZeroMemory(&sc_buffer_description_, sizeof(D3D11_BUFFER_DESC));
     ZeroMemory(&sc_srv_description_, sizeof(D3D11_SHADER_RESOURCE_VIEW_DESC));
+    ZeroMemory(&pc_buffer_description_, sizeof(D3D11_BUFFER_DESC));
+    ZeroMemory(&pc_srv_description_, sizeof(D3D11_SHADER_RESOURCE_VIEW_DESC));
+
     float offset = 2.0f / (static_cast<float>(resolution_) - 1.0f);
 
     float start_x = -1.0f;
@@ -366,6 +369,49 @@ Cloth::Cloth(int resolution, ID3D11Device* device)
             std::cout << "SRV creation failed\n";
             exit(1);
         }
+    }
+
+    PinConstraint pin1;
+    pin1.idx = 0;
+    pin1.x = vertices_[0].x;
+    pin1.y = vertices_[0].y;
+    pin1.z = vertices_[0].z;
+
+    PinConstraint pin2;
+    pin2.idx = resolution_ - 1;
+    pin2.x = vertices_[resolution_ - 1].x;
+    pin2.y = vertices_[resolution_ - 1].y;
+    pin2.z = vertices_[resolution_ - 1].z;
+
+    pin_constraints_.push_back(pin1);
+    pin_constraints_.push_back(pin2);
+
+    pc_buffer_description_.Usage = D3D11_USAGE_DEFAULT;
+    pc_buffer_description_.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+    pc_buffer_description_.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+    pc_buffer_description_.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+    pc_buffer_description_.StructureByteStride = sizeof(PinConstraint);
+    pc_buffer_description_.ByteWidth = sizeof(PinConstraint) * pin_constraints_.size();
+
+    pc_srd_.pSysMem = &(pin_constraints_[0]);
+    pc_srd_.SysMemPitch = 0;
+    pc_srd_.SysMemSlicePitch = 0;
+
+    pc_srv_description_.Format = DXGI_FORMAT_UNKNOWN;
+    pc_srv_description_.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
+    pc_srv_description_.Buffer.FirstElement = 0;
+    pc_srv_description_.Buffer.NumElements = pin_constraints_.size();
+
+    if (static_cast<int>(device->CreateBuffer(&pc_buffer_description_, &pc_srd_, &pc_buffer_)))
+    {
+        std::cout << "Buffer creation failed\n";
+        exit(1);
+    }
+
+    if (static_cast<int>(device->CreateShaderResourceView(pc_buffer_, &pc_srv_description_, &pc_srvs_)))
+    {
+        std::cout << "SRV creation failed\n";
+        exit(1);
     }
 
     mass_ = 1.0f;

@@ -316,6 +316,9 @@ int main(int, char**)
 
     CShader enforce_structural_shader;
     CreateCShader(enforce_structural_shader, L"../res/Shaders/EnforceStructural.hlsl");
+
+    CShader enforce_pin_shader;
+    CreateCShader(enforce_pin_shader, L"../res/Shaders/EnoforcePin.hlsl");
 #pragma endregion
 
 #pragma region ConstantBuffers
@@ -447,7 +450,7 @@ int main(int, char**)
     bool rotate = false;
     bool render_wireframe = false;
 
-    bool run_sim = true;
+    bool run_sim = false;
     bool step_sim = false;
 
     int quality_steps = 5;
@@ -554,7 +557,18 @@ int main(int, char**)
                 context->CSSetUnorderedAccessViews(2, 1, &cloth.velocity_uav_, nullptr);
                 context->Dispatch(cloth.resolution_multiplier_ * cloth.resolution_multiplier_, 1, 1);
 
-                
+                BindCShader(enforce_pin_shader);
+                context->CSSetConstantBuffers(0, 1, &delta_time_constant_buffer);
+                context->CSSetConstantBuffers(1, 1, &compliance_constant_buffer);
+                context->CSSetConstantBuffers(2, 1, &mass_constant_buffer);
+                SetCBuffer(delta_time_constant_buffer, dt_data);
+                SetCBuffer(compliance_constant_buffer, compliance_data);
+                SetCBuffer(mass_constant_buffer, mass_data);
+                context->CSSetUnorderedAccessViews(0, 1, &cloth.output_uav_, nullptr);
+                context->CSSetShaderResources(0, 1, &(cloth.pc_srvs_));
+                context->Dispatch(cloth.pin_constraints_.size(), 1, 1);
+                context->CSSetShaderResources(0, 1, &cloth.cleaner_srv_);
+                context->CSSetUnorderedAccessViews(0, 1, &cleaner_uav, nullptr);
 
                 //BindCShader(enforce_structural_shader);
                 //context->CSSetConstantBuffers(0, 1, &delta_time_constant_buffer);
