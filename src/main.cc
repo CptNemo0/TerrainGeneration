@@ -283,16 +283,15 @@ int main(int, char**)
 #pragma endregion
 
 #pragma region Shaders
-
     Shader screen_shader;
     CreateShaders(screen_shader, L"../res/Shaders/ScreenQuad.hlsl");
-
+    
     Shader shadowmap_shader;
     CreateShaders(shadowmap_shader, L"../res/Shaders/ShadowMap.hlsl");
-
+    
     Shader gbuffer_shader;
     CreateShaders(gbuffer_shader, L"../res/Shaders/GBuffer.hlsl");
-
+    
     Shader gbuffer_grid_shader;
     CreateShaders(gbuffer_grid_shader, L"../res/Shaders/GridGBuffer.hlsl");
 
@@ -363,8 +362,8 @@ int main(int, char**)
     time_data.time = 0.0;
 
     DeltaTimeBuffer dt_data;
-    dt_data.dt = (1.0f / 300.0f);
-    dt_data.idt = 300.0f;
+    dt_data.dt = 0.0035f;
+    dt_data.idt = 1.0f / dt_data.dt;
     dt_data.t = 0.0f;
     dt_data.p1 = 0.0f;
 
@@ -465,7 +464,7 @@ int main(int, char**)
     bool run_sim = false;
     bool step_sim = false;
 
-    int quality_steps = 5;
+    int quality_steps = 20;
 
     POINT prev_mouse_pos = { 0, 0 };
     while (!done)
@@ -546,36 +545,25 @@ int main(int, char**)
         {
             for (int it = 0; it < quality_steps; it++)
             {
+                SetCBuffer(delta_time_constant_buffer, dt_data);
+                SetCBuffer(gravity_constant_buffer, gravity_data);
+                SetCBuffer(mass_constant_buffer, mass_data);
+                SetCBuffer(wind_constant_buffer, wind_data);
+
                 BindCShader(update_position_shader);
                 context->CSSetConstantBuffers(0, 1, &delta_time_constant_buffer);
                 context->CSSetConstantBuffers(1, 1, &gravity_constant_buffer);
                 context->CSSetConstantBuffers(2, 1, &mass_constant_buffer);
                 context->CSSetConstantBuffers(3, 1, &wind_constant_buffer);
-                SetCBuffer(delta_time_constant_buffer, dt_data);
-                SetCBuffer(gravity_constant_buffer, gravity_data);
-                SetCBuffer(mass_constant_buffer, mass_data);
-                SetCBuffer(wind_constant_buffer, wind_data);
-                context->CSSetUnorderedAccessViews(0, 1, &cloth.output_uav_, nullptr);
+                context->CSSetUnorderedAccessViews(0, 1, &cloth.position_uav_, nullptr);
                 context->CSSetUnorderedAccessViews(1, 1, &cloth.previous_positions_uav_, nullptr);
-                context->CSSetUnorderedAccessViews(2, 1, &cloth.velocity_uav_, nullptr);
                 context->Dispatch(cloth.resolution_multiplier_* cloth.resolution_multiplier_, 1, 1);
-
-                BindCShader(update_velocity_shader);
-                context->CSSetConstantBuffers(0, 1, &delta_time_constant_buffer);
-                context->CSSetConstantBuffers(1, 1, &gravity_constant_buffer);
-                context->CSSetConstantBuffers(2, 1, &mass_constant_buffer);
-                
-                context->CSSetUnorderedAccessViews(0, 1, &cloth.output_uav_, nullptr);
-                context->CSSetUnorderedAccessViews(1, 1, &cloth.previous_positions_uav_, nullptr);
-                context->CSSetUnorderedAccessViews(2, 1, &cloth.velocity_uav_, nullptr);
-                context->Dispatch(cloth.resolution_multiplier_ * cloth.resolution_multiplier_, 1, 1);
 
                 BindCShader(enforce_pin_shader);
                 context->CSSetConstantBuffers(0, 1, &delta_time_constant_buffer);
                 context->CSSetConstantBuffers(1, 1, &compliance_constant_buffer);
                 context->CSSetConstantBuffers(2, 1, &mass_constant_buffer);
-                
-                context->CSSetUnorderedAccessViews(0, 1, &cloth.output_uav_, nullptr);
+                context->CSSetUnorderedAccessViews(0, 1, &cloth.position_uav_, nullptr);
                 context->CSSetShaderResources(0, 1, &(cloth.pc_srvs_));
                 context->Dispatch(cloth.pin_constraints_.size(), 1, 1);
                 context->CSSetShaderResources(0, 1, &cloth.cleaner_srv_);
@@ -586,7 +574,7 @@ int main(int, char**)
                 context->CSSetConstantBuffers(1, 1, &compliance_constant_buffer);
                 context->CSSetConstantBuffers(2, 1, &mass_constant_buffer);
                 
-                context->CSSetUnorderedAccessViews(0, 1, &cloth.output_uav_, nullptr);
+                context->CSSetUnorderedAccessViews(0, 1, &cloth.position_uav_, nullptr);
                 for (int i = 0; i < 8; i++)
                 {
                     int x_dim = static_cast<int>(ceil(cloth.structural_constraints_[i].size() / 1024.0f));
@@ -608,7 +596,6 @@ int main(int, char**)
 
             }
             
-
             cloth.TangentUpdate(context);
             if (step_sim)
             {
@@ -630,11 +617,7 @@ int main(int, char**)
         context->VSSetConstantBuffers(1, 1, &model_matrix_constant_buffer);
         SetCBuffer(view_proj_constant_buffer, lightspace_data);
         SetCBuffer(model_matrix_constant_buffer, model_matrix_data);
-        context->VSSetShaderResources(0, 1, &cloth.output_srv_);
-        context->IASetVertexBuffers(0, 1, &rectangle_vertex_buffer, &stride, &offset);
-        context->IASetIndexBuffer(rectangle_index_buffer, DXGI_FORMAT_R32_UINT, 0);
-        context->DrawIndexed(6, 0, 0);
-
+        context->VSSetShaderResources(0, 1, &cloth.position_srv_);
         cloth.Draw(context);
 
 #pragma endregion
@@ -671,7 +654,8 @@ int main(int, char**)
         context->VSSetConstantBuffers(1, 1, &view_proj_constant_buffer);
         context->VSSetConstantBuffers(2, 1, &camera_constant_buffer);
         context->VSSetConstantBuffers(3, 1, &model_matrix_constant_buffer);
-        context->VSSetShaderResources(0, 1, &cloth.output_srv_);
+        context->VSSetShaderResources(0, 1, &cloth.position_srv_);
+        context->VSSetShaderResources(1, 1, &cloth.normal_srv_);
         SetCBuffer(color_constant_buffer, color_data);
         SetCBuffer(view_proj_constant_buffer, view_proj_data);
         SetCBuffer(camera_constant_buffer, camera_data);
@@ -733,10 +717,10 @@ int main(int, char**)
         
         ImGui::Checkbox("Render wireframe", &render_wireframe);
         
-        ImGui::SliderInt("Quality steps", &quality_steps, 1, 5);
+        ImGui::SliderInt("Quality steps", &quality_steps, 1, 80);
         ImGui::SliderFloat("Structure elasticity", &structural_compliance_data.alpha, 0.00005f, 0.1f, "%.4f");
-        ImGui::SliderFloat("Flexibility", &bending_compliance_data.alpha, 0.0001f, 2.0f);
-        ImGui::SliderFloat("Gravity strength", &gravity_data.y, -100.0f, -10.0f);
+        ImGui::SliderFloat("Flexibility", &bending_compliance_data.alpha, 0.001f, 2.0f);
+        ImGui::SliderFloat("Gravity strength", &gravity_data.y, -100.0f, 0.0f);
         ImGui::SliderFloat("Wind strength", &wind_data.strength_mul, 0.0f, 100.0f);
 
         if(ImGui::Button("Stop simulation"))

@@ -31,6 +31,6 @@ cbuffer Mass : register(b2)
 [numthreads(1024, 1, 1)]
 void CSMain(uint3 id : SV_DispatchThreadID)
 {
-    velocity[id.x] = (output_buffer[id.x].position - previous_position[id.x]) * idt;
+    velocity[id.x] = (output_buffer[id.x].position - previous_position[id.x]) * idt * 0.99975;
     previous_position[id.x] = output_buffer[id.x].position;
 }

@@ -43,20 +43,15 @@ cbuffer ModelMatrix : register(b3)
     float4x4 ti_model_matrix;
 };
 
-struct Vertex
-{
-    float3 position;
-    float3 normal;
-};
-
-StructuredBuffer<Vertex> output_buffer : register(t0);
+StructuredBuffer<float3> position_buffer : register(t0);
+StructuredBuffer<float3> normal_buffer : register(t1);
 
 PixelInput VSMain(VertexInput input, uint id : SV_VertexID)
 {
     PixelInput output;
 
-    float4 position = float4(output_buffer[id].position, 1.0);
-    float4 normal = float4(normalize(output_buffer[id].normal), 1.0);
+    float4 position = float4(position_buffer[id], 1.0);
+    float4 normal = float4(normalize(normal_buffer[id]), 1.0);
     
     float4 world_position = mul(model_matrix, position);
     float4 view_position = mul(view_matrix, world_position);

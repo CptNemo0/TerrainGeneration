@@ -4,17 +4,11 @@ Cloth::Cloth(int resolution, ID3D11Device* device)
 {
 	resolution_multiplier_ = resolution;
 	resolution_ = 32 * resolution_multiplier_;
-	//resolution_ = 4;
    
-	ZeroMemory(&vertex_buffer_description_, sizeof(D3D11_BUFFER_DESC));
 	ZeroMemory(&index_buffer_description_, sizeof(D3D11_BUFFER_DESC));
-	ZeroMemory(&output_buffer_description_, sizeof(D3D11_BUFFER_DESC));
-	ZeroMemory(&output_uav_description_, sizeof(D3D11_UNORDERED_ACCESS_VIEW_DESC));
-	ZeroMemory(&output_srv_description_, sizeof(D3D11_SHADER_RESOURCE_VIEW_DESC));
+
+    ZeroMemory(&position_buffer_description_, sizeof(D3D11_BUFFER_DESC));
     ZeroMemory(&previous_positions_buffer_description_, sizeof(D3D11_BUFFER_DESC));
-    ZeroMemory(&previous_positions_uav_description_, sizeof(D3D11_UNORDERED_ACCESS_VIEW_DESC));
-    ZeroMemory(&velocity_buffer_description_, sizeof(D3D11_BUFFER_DESC));
-    ZeroMemory(&velocity_uav_description_, sizeof(D3D11_UNORDERED_ACCESS_VIEW_DESC));
     ZeroMemory(&faces_buffer_description_, sizeof(D3D11_BUFFER_DESC));
 	ZeroMemory(&faces_srv_description_, sizeof(D3D11_SHADER_RESOURCE_VIEW_DESC));
     ZeroMemory(&sc_buffer_description_, sizeof(D3D11_BUFFER_DESC));
@@ -33,12 +27,13 @@ Cloth::Cloth(int resolution, ID3D11Device* device)
     {
         for (int j = 0; j < resolution_; j++)
         {
-            vertices_.emplace_back(start_x + j * offset,
-                                   start_y - i * offset,
-                                   0.0f,
-                                   0.0f,
-                                   0.0f,
-                                   1.0f);
+            positions_.push_back(start_x + j * offset);
+            positions_.push_back(start_y - i * offset);
+            positions_.push_back(0.1f);
+
+            normals_.push_back(0.0f);
+            normals_.push_back(0.0f);
+            normals_.push_back(1.0f);
         }
     }
 
@@ -80,24 +75,7 @@ Cloth::Cloth(int resolution, ID3D11Device* device)
             }
         }
     }
-
-    vertex_buffer_description_.ByteWidth = sizeof(Vertex) * vertices_.size();
-    vertex_buffer_description_.Usage = D3D11_USAGE_DEFAULT;
-    vertex_buffer_description_.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-    vertex_buffer_description_.CPUAccessFlags = 0;
-    vertex_buffer_description_.MiscFlags = 0;
-    vertex_buffer_description_.StructureByteStride = sizeof(Vertex);
-
-    vertex_srd_.pSysMem = &(vertices_[0]);
-    vertex_srd_.SysMemPitch = 0;
-    vertex_srd_.SysMemSlicePitch = 0;
-
-    if (static_cast<int>(device->CreateBuffer(&vertex_buffer_description_, &vertex_srd_, &vertex_buffer_)))
-    {
-        std::cout << "Vertex buffer creation failed\n";
-        exit(1);
-    }
-    
+  
     index_buffer_description_.ByteWidth = sizeof(Face) * faces_.size();
     index_buffer_description_.BindFlags = D3D11_BIND_INDEX_BUFFER;
     
@@ -111,49 +89,70 @@ Cloth::Cloth(int resolution, ID3D11Device* device)
         exit(1);
     }
 
-    output_buffer_description_.Usage = D3D11_USAGE_DEFAULT;
-    output_buffer_description_.BindFlags = D3D11_BIND_UNORDERED_ACCESS | D3D11_BIND_SHADER_RESOURCE;
-    output_buffer_description_.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-    output_buffer_description_.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
-    output_buffer_description_.StructureByteStride = sizeof(Vertex);
-    output_buffer_description_.ByteWidth = sizeof(Vertex) * resolution_ * resolution_;
+    
+    D3D11_SHADER_RESOURCE_VIEW_DESC srv_description;
+    ZeroMemory(&srv_description, sizeof(D3D11_SHADER_RESOURCE_VIEW_DESC));
+    srv_description.Format = DXGI_FORMAT_UNKNOWN;
+    srv_description.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
+    srv_description.Buffer.FirstElement = 0;
+    srv_description.Buffer.NumElements = resolution_ * resolution_;
 
-    output_srd_.pSysMem = &(vertices_[0]);
-    output_srd_.SysMemPitch = 0;
-    output_srd_.SysMemSlicePitch = 0;
+    D3D11_UNORDERED_ACCESS_VIEW_DESC uav_description;
+    ZeroMemory(&uav_description, sizeof(D3D11_UNORDERED_ACCESS_VIEW_DESC));
+    uav_description.Format = DXGI_FORMAT_UNKNOWN;
+    uav_description.ViewDimension = D3D11_UAV_DIMENSION_BUFFER;
+    uav_description.Buffer.FirstElement = 0;
+    uav_description.Buffer.NumElements = resolution_ * resolution_;
 
-    output_uav_description_.Format = DXGI_FORMAT_UNKNOWN;
-    output_uav_description_.ViewDimension = D3D11_UAV_DIMENSION_BUFFER;
-    output_uav_description_.Buffer.FirstElement = 0;
-    output_uav_description_.Buffer.NumElements = resolution_ * resolution_;
-    output_srv_description_.Format = DXGI_FORMAT_UNKNOWN;
-    output_srv_description_.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
-    output_srv_description_.Buffer.FirstElement = 0;
-    output_srv_description_.Buffer.NumElements = resolution_ * resolution_;
+    D3D11_SUBRESOURCE_DATA srd;
+    ZeroMemory(&srd, sizeof(D3D11_SUBRESOURCE_DATA));
 
-    if (static_cast<int>(device->CreateBuffer(&output_buffer_description_, &output_srd_, &output_buffer_)))
+    position_buffer_description_.Usage = D3D11_USAGE_DEFAULT;
+    position_buffer_description_.BindFlags = D3D11_BIND_UNORDERED_ACCESS | D3D11_BIND_SHADER_RESOURCE;
+    position_buffer_description_.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+    position_buffer_description_.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+    position_buffer_description_.StructureByteStride = sizeof(float) * 3;
+    position_buffer_description_.ByteWidth = sizeof(float) * 3 * resolution_ * resolution_;
+    srd.pSysMem = &(positions_[0]);
+    
+    if (static_cast<int>(device->CreateBuffer(&position_buffer_description_, &srd, &position_buffer_)))
     {
         std::cout << "Buffer creation failed\n";
         exit(1);
     }
-    if (static_cast<int>(device->CreateUnorderedAccessView(output_buffer_, &output_uav_description_, &output_uav_)))
+    if (static_cast<int>(device->CreateUnorderedAccessView(position_buffer_, &uav_description, &position_uav_)))
     {
         std::cout << " UAV creation failed\n";
         exit(1);
     }
-    if (static_cast<int>(device->CreateShaderResourceView(output_buffer_, &output_srv_description_, &output_srv_)))
+    if (static_cast<int>(device->CreateShaderResourceView(position_buffer_, &srv_description, &position_srv_)))
     {
-        std::cout << "SRV creation failed\n";
+        std::cout << " SRV creation failed\n";
         exit(1);
     }
 
-    std::vector<float> pp;
+    normal_buffer_description_.Usage = D3D11_USAGE_DEFAULT;
+    normal_buffer_description_.BindFlags = D3D11_BIND_UNORDERED_ACCESS | D3D11_BIND_SHADER_RESOURCE;
+    normal_buffer_description_.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+    normal_buffer_description_.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+    normal_buffer_description_.StructureByteStride = sizeof(float) * 3;
+    normal_buffer_description_.ByteWidth = sizeof(float) * 3 * resolution_ * resolution_;
+    srd.pSysMem = &(normals_[0]);
 
-    for (auto& v : vertices_)
+    if (static_cast<int>(device->CreateBuffer(&normal_buffer_description_, &srd, &normal_buffer_)))
     {
-        pp.push_back(v.x);
-        pp.push_back(v.y);
-        pp.push_back(v.z);
+        std::cout << "Buffer creation failed\n";
+        exit(1);
+    }
+    if (static_cast<int>(device->CreateUnorderedAccessView(normal_buffer_, &uav_description, &normal_uav_)))
+    {
+        std::cout << " UAV creation failed\n";
+        exit(1);
+    }
+    if (static_cast<int>(device->CreateShaderResourceView(normal_buffer_, &srv_description, &normal_srv_)))
+    {
+        std::cout << " SRV creation failed\n";
+        exit(1);
     }
 
     previous_positions_buffer_description_.Usage = D3D11_USAGE_DEFAULT;
@@ -162,51 +161,14 @@ Cloth::Cloth(int resolution, ID3D11Device* device)
     previous_positions_buffer_description_.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
     previous_positions_buffer_description_.StructureByteStride = sizeof(float) * 3;
     previous_positions_buffer_description_.ByteWidth = sizeof(float) * 3 * resolution_ * resolution_;
+    srd.pSysMem = &(positions_[0]);
 
-    previous_positions_srd_.pSysMem = &(pp[0]);
-    previous_positions_srd_.SysMemPitch = 0;
-    previous_positions_srd_.SysMemSlicePitch = 0;
-
-    previous_positions_uav_description_.Format = DXGI_FORMAT_UNKNOWN;
-    previous_positions_uav_description_.ViewDimension = D3D11_UAV_DIMENSION_BUFFER;
-    previous_positions_uav_description_.Buffer.FirstElement = 0;
-    previous_positions_uav_description_.Buffer.NumElements = resolution_ * resolution_;
-    
-    if (static_cast<int>(device->CreateBuffer(&previous_positions_buffer_description_, &previous_positions_srd_, &previous_positions_)))
+    if (static_cast<int>(device->CreateBuffer(&previous_positions_buffer_description_, &srd, &previous_positions_)))
     {
         std::cout << "Buffer creation failed\n";
         exit(1);
     }
-    if (static_cast<int>(device->CreateUnorderedAccessView(previous_positions_, &previous_positions_uav_description_, &previous_positions_uav_)))
-    {
-        std::cout << " UAV creation failed\n";
-        exit(1);
-    }
-
-    velocity_buffer_description_.Usage = D3D11_USAGE_DEFAULT;
-    velocity_buffer_description_.BindFlags = D3D11_BIND_UNORDERED_ACCESS;
-    velocity_buffer_description_.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-    velocity_buffer_description_.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
-    velocity_buffer_description_.StructureByteStride = sizeof(float) * 3;
-    velocity_buffer_description_.ByteWidth = sizeof(float) * 3 * resolution_ * resolution_;
-
-    std::vector<float>vs(3 * resolution_ * resolution_, 0.0f);
-
-    velocity_srd_.pSysMem = &(vs[0]);
-    velocity_srd_.SysMemPitch = 0;
-    velocity_srd_.SysMemSlicePitch = 0;
-
-    velocity_uav_description_.Format = DXGI_FORMAT_UNKNOWN;
-    velocity_uav_description_.ViewDimension = D3D11_UAV_DIMENSION_BUFFER;
-    velocity_uav_description_.Buffer.FirstElement = 0;
-    velocity_uav_description_.Buffer.NumElements = resolution_ * resolution_;
-
-    if (static_cast<int>(device->CreateBuffer(&velocity_buffer_description_, &velocity_srd_, &velocity_buffer_)))
-    {
-        std::cout << "Buffer creation failed\n";
-        exit(1);
-    }
-    if (static_cast<int>(device->CreateUnorderedAccessView(velocity_buffer_, &velocity_uav_description_, &velocity_uav_)))
+    if (static_cast<int>(device->CreateUnorderedAccessView(previous_positions_, &uav_description, &previous_positions_uav_)))
     {
         std::cout << " UAV creation failed\n";
         exit(1);
@@ -224,16 +186,14 @@ Cloth::Cloth(int resolution, ID3D11Device* device)
         faces_buffer_description_.StructureByteStride = sizeof(Face);
         faces_buffer_description_.ByteWidth = sizeof(Face) * faces_gpu_groups_[i].size();
 
-        faces_srd_.pSysMem = &(faces_gpu_groups_[i][0]);
-        faces_srd_.SysMemPitch = 0;
-        faces_srd_.SysMemSlicePitch = 0;
-
+        srd.pSysMem = &(faces_gpu_groups_[i][0]);
+        
         faces_srv_description_.Format = DXGI_FORMAT_UNKNOWN;
         faces_srv_description_.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
         faces_srv_description_.Buffer.FirstElement = 0;
         faces_srv_description_.Buffer.NumElements = faces_gpu_groups_[i].size();
 
-        if (static_cast<int>(device->CreateBuffer(&faces_buffer_description_, &faces_srd_, &faces_buffers_[i])))
+        if (static_cast<int>(device->CreateBuffer(&faces_buffer_description_, &srd, &faces_buffers_[i])))
         {
             std::cout << "Buffer creation failed\n";
             exit(1);
@@ -379,16 +339,14 @@ Cloth::Cloth(int resolution, ID3D11Device* device)
         sc_buffer_description_.StructureByteStride = sizeof(LinearConstraint);
         sc_buffer_description_.ByteWidth = sizeof(LinearConstraint) * structural_constraints_[i].size();
 
-        sc_srd_.pSysMem = &(structural_constraints_[i][0]);
-        sc_srd_.SysMemPitch = 0;
-        sc_srd_.SysMemSlicePitch = 0;
+        srd.pSysMem = &(structural_constraints_[i][0]);
 
         sc_srv_description_.Format = DXGI_FORMAT_UNKNOWN;
         sc_srv_description_.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
         sc_srv_description_.Buffer.FirstElement = 0;
         sc_srv_description_.Buffer.NumElements = structural_constraints_[i].size();
 
-        if (static_cast<int>(device->CreateBuffer(&sc_buffer_description_, &sc_srd_, &sc_buffers_[i])))
+        if (static_cast<int>(device->CreateBuffer(&sc_buffer_description_, &srd, &sc_buffers_[i])))
         {
             std::cout << "Buffer creation failed\n";
             exit(1);
@@ -470,16 +428,14 @@ Cloth::Cloth(int resolution, ID3D11Device* device)
         bending_buffer_description_.StructureByteStride = sizeof(LinearConstraint);
         bending_buffer_description_.ByteWidth = sizeof(LinearConstraint) * bending_constraints_[i].size();
 
-        bending_srd_.pSysMem = &(bending_constraints_[i][0]);
-        bending_srd_.SysMemPitch = 0;
-        bending_srd_.SysMemSlicePitch = 0;
+        srd.pSysMem = &(bending_constraints_[i][0]);
 
         bending_srv_description_.Format = DXGI_FORMAT_UNKNOWN;
         bending_srv_description_.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
         bending_srv_description_.Buffer.FirstElement = 0;
         bending_srv_description_.Buffer.NumElements = bending_constraints_[i].size();
 
-        if (static_cast<int>(device->CreateBuffer(&bending_buffer_description_, &bending_srd_, &bending_buffers_[i])))
+        if (static_cast<int>(device->CreateBuffer(&bending_buffer_description_, &srd, &bending_buffers_[i])))
         {
             std::cout << "Buffer creation failed\n";
             exit(1);
@@ -494,39 +450,18 @@ Cloth::Cloth(int resolution, ID3D11Device* device)
 
     PinConstraint pin1;
     pin1.idx = 0;
-    pin1.x = vertices_[0].x;
-    pin1.y = vertices_[0].y;
-    pin1.z = vertices_[0].z;
+    pin1.x = positions_[0];
+    pin1.y = positions_[1];
+    pin1.z = positions_[2];
 
     PinConstraint pin2;
     pin2.idx = resolution_ - 1;
-    pin2.x = vertices_[resolution_ - 1].x;
-    pin2.y = vertices_[resolution_ - 1].y;
-    pin2.z = vertices_[resolution_ - 1].z;
+    pin2.x = positions_[(resolution_ - 1) * 3];
+    pin2.y = positions_[(resolution_ - 1) * 3 + 1];
+    pin2.z = positions_[(resolution_ - 1) * 3 + 2];
     
-    PinConstraint pin3;
-    pin3.idx = (resolution_ - 1) * 0.25f;
-    pin3.x = vertices_[pin3.idx].x;
-    pin3.y = vertices_[pin3.idx].y;
-    pin3.z = vertices_[pin3.idx].z;
-
-    PinConstraint pin4;
-    pin4.idx = (resolution_ - 1) * 0.75f;
-    pin4.x = vertices_[pin4.idx].x;
-    pin4.y = vertices_[pin4.idx].y;
-    pin4.z = vertices_[pin4.idx].z;
-
-    PinConstraint pin5;
-    pin5.idx = (resolution_ - 1) * 0.5f;
-    pin5.x = vertices_[pin5.idx].x;
-    pin5.y = vertices_[pin5.idx].y;
-    pin5.z = vertices_[pin5.idx].z;
-
     pin_constraints_.push_back(pin1);
     pin_constraints_.push_back(pin2);
-    pin_constraints_.push_back(pin3);
-    pin_constraints_.push_back(pin4);
-    pin_constraints_.push_back(pin5);
 
     pc_buffer_description_.Usage = D3D11_USAGE_DEFAULT;
     pc_buffer_description_.BindFlags = D3D11_BIND_SHADER_RESOURCE;
@@ -535,16 +470,14 @@ Cloth::Cloth(int resolution, ID3D11Device* device)
     pc_buffer_description_.StructureByteStride = sizeof(PinConstraint);
     pc_buffer_description_.ByteWidth = sizeof(PinConstraint) * pin_constraints_.size();
 
-    pc_srd_.pSysMem = &(pin_constraints_[0]);
-    pc_srd_.SysMemPitch = 0;
-    pc_srd_.SysMemSlicePitch = 0;
+    srd.pSysMem = &(pin_constraints_[0]);
 
     pc_srv_description_.Format = DXGI_FORMAT_UNKNOWN;
     pc_srv_description_.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
     pc_srv_description_.Buffer.FirstElement = 0;
     pc_srv_description_.Buffer.NumElements = pin_constraints_.size();
 
-    if (static_cast<int>(device->CreateBuffer(&pc_buffer_description_, &pc_srd_, &pc_buffer_)))
+    if (static_cast<int>(device->CreateBuffer(&pc_buffer_description_, &srd, &pc_buffer_)))
     {
         std::cout << "Buffer creation failed\n";
         exit(1);
@@ -566,7 +499,6 @@ void Cloth::Update(float dt)
 
 void Cloth::Draw(ID3D11DeviceContext* context)
 {
-    context->IASetVertexBuffers(0, 1, &vertex_buffer_, &stride_, &offset_);
     context->IASetIndexBuffer(index_buffer_, DXGI_FORMAT_R32_UINT, 0);
     context->DrawIndexed(3 * faces_.size(), 0, 0);
     context->VSSetShaderResources(0, 1, &cleaner_srv_);
@@ -575,12 +507,13 @@ void Cloth::Draw(ID3D11DeviceContext* context)
 void Cloth::TangentUpdate(ID3D11DeviceContext* context)
 {
     context->CSSetShader(zero_normals_shader_->compute_shader, nullptr, 0);
-    context->CSSetUnorderedAccessViews(0, 1, &output_uav_, nullptr);
+    context->CSSetUnorderedAccessViews(0, 1, &normal_uav_, nullptr);
     context->Dispatch(resolution_multiplier_ * resolution_multiplier_, 1, 1);
     context->CSSetUnorderedAccessViews(0, 1, &cleaner_uav_, nullptr);
 
     context->CSSetShader(recalculate_normals_shader_->compute_shader, nullptr, 0);
-    context->CSSetUnorderedAccessViews(0, 1, &output_uav_, nullptr);
+    context->CSSetUnorderedAccessViews(0, 1, &position_uav_, nullptr);
+    context->CSSetUnorderedAccessViews(1, 1, &normal_uav_, nullptr);
     for (int i = 0; i < 8; i++)
     {
         context->CSSetShaderResources(0, 1, &(faces_srvs_[i]));
@@ -588,4 +521,5 @@ void Cloth::TangentUpdate(ID3D11DeviceContext* context)
         context->CSSetShaderResources(0, 1, &cleaner_srv_);
     }
     context->CSSetUnorderedAccessViews(0, 1, &cleaner_uav_, nullptr);
+    context->CSSetUnorderedAccessViews(1, 1, &cleaner_uav_, nullptr);
 }

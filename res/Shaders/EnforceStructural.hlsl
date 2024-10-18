@@ -1,9 +1,3 @@
-struct Vertex
-{
-    float3 position;
-    float3 normal;
-};
-
 struct LinearConstraint
 {
     int idx_a;
@@ -12,7 +6,7 @@ struct LinearConstraint
     float padding;
 };
 
-RWStructuredBuffer<Vertex> output_buffer : register(u0);
+RWStructuredBuffer<float3> position_buffer : register(u0);
 StructuredBuffer<LinearConstraint> constraints : register(t0);
 
 cbuffer DeltaTime : register(b0)
@@ -39,24 +33,23 @@ cbuffer Mass : register(b2)
 void CSMain(uint3 id : SV_DispatchThreadID)
 {
     LinearConstraint constraint = constraints[id.x];
-    Vertex a = output_buffer[constraint.idx_a];
-    Vertex b = output_buffer[constraint.idx_b];
+    float3 a = position_buffer[constraint.idx_a];
+    float3 b = position_buffer[constraint.idx_b];
     
-    float dst = distance(a.position, b.position);
-    dst += 0.00001;
+    float3 diff = a - b;
+    float dst_sqr = dot(diff, diff);
+    dst_sqr += 0.000001;
+    float dst = sqrt(dst_sqr);
     
     float idst = 1.0 / dst;
     float C = dst - constraint.distance;
-    float3 ga = (a.position - b.position) * idst;
-    float3 gb = -1.0 * ga;
+    float3 ga = diff * idst;
     float gal = length(ga);
-    float gab = gal;
-    float lambda = -1.0 * C / (imass * (gal + gab) + alpha * idt);
+    float lambda = -C / (imass * (2.0 * gal) + alpha * idt);
     float m = lambda * imass;
-    a.position += m * ga;
-    b.position += m * gb;
+    a += m * ga;
+    b -= m * ga;
     
-    output_buffer[constraint.idx_a] = a;
-    output_buffer[constraint.idx_b] = b;
-
+    position_buffer[constraint.idx_a] = a;
+    position_buffer[constraint.idx_b] = b;
 }
