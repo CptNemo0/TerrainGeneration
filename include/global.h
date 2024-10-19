@@ -5,6 +5,7 @@
 #include <memory>
 
 #include <d3d11.h>
+#include <dxgi.h>
 #include <wrl/client.h>
 
 #include <imgui.h>
@@ -113,6 +114,33 @@ bool CreateDeviceD3D(HWND hWnd)
     const D3D_FEATURE_LEVEL featureLevelArray[2] = { D3D_FEATURE_LEVEL_11_0, D3D_FEATURE_LEVEL_10_0, };
     if (D3D11CreateDeviceAndSwapChain(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, createDeviceFlags, featureLevelArray, 2, D3D11_SDK_VERSION, &sd, &swap_chain, &device, &featureLevel, &context) != S_OK)
         return false;
+
+    IDXGIDevice* pDXGIDevice = nullptr;
+    IDXGIAdapter* pAdapter = nullptr;
+    DXGI_ADAPTER_DESC adapterDesc;
+
+    // Query the DXGI Device from the D3D11 device
+    HRESULT hr = device->QueryInterface(__uuidof(IDXGIDevice), (void**)&pDXGIDevice);
+    if (SUCCEEDED(hr) && pDXGIDevice)
+    {
+        // Get the adapter (the GPU) that the device is using
+        hr = pDXGIDevice->GetAdapter(&pAdapter);
+        if (SUCCEEDED(hr) && pAdapter)
+        {
+            // Get the adapter's description
+            pAdapter->GetDesc(&adapterDesc);
+
+            // Output the GPU information
+            std::wcout << L"GPU: " << adapterDesc.Description << std::endl;
+            std::wcout << L"Dedicated Video Memory: " << adapterDesc.DedicatedVideoMemory / (1024 * 1024) << L" MB" << std::endl;
+
+            // Release the adapter
+            pAdapter->Release();
+        }
+
+        // Release the DXGI device
+        pDXGIDevice->Release();
+    }
 
     CreateRenderTarget();
     return true;

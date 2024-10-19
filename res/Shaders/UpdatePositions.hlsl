@@ -52,10 +52,10 @@ void CSMain(uint3 tid : SV_GroupThreadID, uint3 gid : SV_GroupID)
     //float3 velocity = (position_buffer[id.x] - previous_position[id.x]) * idt * 0.9995;
     //previous_position[id.x] = position_buffer[id.x];
     
-    //float wind_s = rand3dTo1d(position_buffer[id.x]);
-    //wind_s *= wind_s * wind_s;
+    float wind_s = rand3dTo1d(position_buffer[i]);
+    wind_s *= wind_s * wind_s;
 
-    velocity[i] += dt * dt * imass * (fg);
+    velocity[i] += dt * dt * imass * (fg + wind_s * w_strength_multiplier * w_direction);
     previous_position[i] = position_buffer[i];    
     position_buffer[i] += dt * velocity[i];
     jacobi[i] = uint3(0.0, 0.0, 0.0);

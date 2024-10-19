@@ -460,7 +460,7 @@ int main(int, char**)
         DirectX::XMVectorGetW(background_color_data.color) 
     };
 
-    Cloth cloth{ 3, device };
+    Cloth cloth{ 2, device };
     cloth.zero_normals_shader_ = &zero_normal_shader;
     cloth.recalculate_normals_shader_ = &recalculate_normal_shader;
     cloth.stride_ = stride;
