@@ -97,7 +97,8 @@ struct WindBuffer
 struct ResolutionBuffer
 {
 	int resolution;
-	int p1, p2, p3;
+	int z_multiplier;
+	int p2, p3;
 };
 
 #endif // !CONSTANT_BUFFER_STRUCTS_H

@@ -6,8 +6,10 @@ Made with:
 - DirectX
 - ImGui
 
+Stretching constraints are solved using graph colouring with typical Gauss-Seidel method, while sheer and bending constraints are solved using Jacobi method.
+
 Steering:
-- Press mouse wheel to rotate around the center.
+- Press mouse wheel to rotate around the centre.
 - Scroll to zoom in/out
 
 Version 1.0 video demo: https://www.youtube.com/watch?v=LXo_VOUzQ9o

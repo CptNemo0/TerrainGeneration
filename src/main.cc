@@ -460,7 +460,7 @@ int main(int, char**)
         DirectX::XMVectorGetW(background_color_data.color) 
     };
 
-    Cloth cloth{ 2, device };
+    Cloth cloth{ 4, device };
     cloth.zero_normals_shader_ = &zero_normal_shader;
     cloth.recalculate_normals_shader_ = &recalculate_normal_shader;
     cloth.stride_ = stride;
@@ -471,7 +471,7 @@ int main(int, char**)
     bool rotate = false;
     bool render_wireframe = false;
 
-    bool run_sim = false;
+    bool run_sim = true;
     bool step_sim = false;
 
     int quality_steps = 20;
@@ -566,12 +566,13 @@ int main(int, char**)
                 context->CSSetConstantBuffers(3, 1, &wind_constant_buffer);
                 context->CSSetConstantBuffers(4, 1, &resolutiom_constant_buffer);
                 resolution_data.resolution = cloth.resolution_;
+                resolution_data.z_multiplier = cloth.resolution_ * cloth.resolution_ / 4;
                 SetCBuffer(resolutiom_constant_buffer, resolution_data);
                 context->CSSetUnorderedAccessViews(0, 1, &cloth.position_uav_, nullptr);
                 context->CSSetUnorderedAccessViews(1, 1, &cloth.previous_positions_uav_, nullptr);
                 context->CSSetUnorderedAccessViews(2, 1, &cloth.velocity_uav_, nullptr);
                 context->CSSetUnorderedAccessViews(3, 1, &cloth.jacobi_uav_, nullptr);
-                context->Dispatch(cloth.resolution_multiplier_, cloth.resolution_multiplier_, 1);
+                context->Dispatch(cloth.resolution_multiplier_, cloth.resolution_multiplier_, 4);
                 
                 BindCShader(enforce_pin_shader);
                 context->CSSetConstantBuffers(0, 1, &delta_time_constant_buffer);
@@ -626,12 +627,13 @@ int main(int, char**)
                 context->CSSetConstantBuffers(2, 1, &mass_constant_buffer);
                 context->CSSetConstantBuffers(3, 1, &resolutiom_constant_buffer);
                 resolution_data.resolution = cloth.resolution_;
+                resolution_data.z_multiplier = cloth.resolution_ * cloth.resolution_ / 4;
                 SetCBuffer(resolutiom_constant_buffer, resolution_data);
                 context->CSSetUnorderedAccessViews(0, 1, &cloth.position_uav_, nullptr);
                 context->CSSetUnorderedAccessViews(1, 1, &cloth.previous_positions_uav_, nullptr);
                 context->CSSetUnorderedAccessViews(2, 1, &cloth.velocity_uav_, nullptr);
                 context->CSSetUnorderedAccessViews(3, 1, &cloth.jacobi_uav_, nullptr);
-                context->Dispatch(cloth.resolution_multiplier_, cloth.resolution_multiplier_, 1);
+                context->Dispatch(cloth.resolution_multiplier_, cloth.resolution_multiplier_, 4);
                 
             }
             

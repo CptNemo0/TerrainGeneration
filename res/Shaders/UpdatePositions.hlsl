@@ -33,7 +33,8 @@ cbuffer Wind : register(b3)
 cbuffer Resolution : register(b4)
 {
     uint resolution;
-    float3 padding_r;
+    uint z_multiplier;
+    float2 padding_r;
 }
 
 float rand3dTo1d(float3 value, float3 dotDir = float3(12.9898, 78.233, 37.719))
@@ -41,14 +42,15 @@ float rand3dTo1d(float3 value, float3 dotDir = float3(12.9898, 78.233, 37.719))
     return frac(sin(value * 143758.5453));
 }
 
-[numthreads(32, 32, 1)]
+[numthreads(32, 8, 1)]
 void CSMain(uint3 tid : SV_GroupThreadID, uint3 gid : SV_GroupID)
 {   
+    uint sz = z_multiplier * gid.z;
     uint sx = gid.x * 32;
-    uint sy = gid.y * 32;
+    uint sy = gid.y * 8;
     uint gx = sx + tid.x;
     uint gy = sy + tid.y;
-    int i = gx + gy * resolution;
+    int i = sz + gx + gy * resolution;
     //float3 velocity = (position_buffer[id.x] - previous_position[id.x]) * idt * 0.9995;
     //previous_position[id.x] = position_buffer[id.x];
     
