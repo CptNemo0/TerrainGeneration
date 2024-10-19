@@ -547,9 +547,12 @@ int main(int, char**)
 
         ULONGLONG current_time = GetTickCount64();
         float t = (current_time - start_time) * 0.001f;
+        float dt = fmin(ImGui::GetIO().DeltaTime, 1.0f / 60.0f);
         grid_data.time = t;
         time_data.time = t;
         dt_data.t = t;
+        dt_data.dt = dt;
+        dt_data.idt = 1.0f / dt;
 
         if (run_sim || step_sim)
         {
