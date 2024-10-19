@@ -12,7 +12,7 @@ Steering:
 - Press mouse wheel to rotate around the centre.
 - Scroll to zoom in/out
 
-Version 1.0 video demo: https://www.youtube.com/watch?v=LXo_VOUzQ9o
+YouTube video: https://www.youtube.com/watch?v=psMpRK0Np5k
 
 ![Solid Image](./images/Solid.png)
 <p align="center">Solid mode.</p>
