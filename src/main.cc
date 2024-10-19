@@ -784,6 +784,10 @@ int main(int, char**)
             step_sim = true;
         }
 
+        float fps = ImGui::GetIO().Framerate;
+
+        ImGui::LabelText(("FPS: " + std::to_string(fps)).c_str(), "");
+
         ImGui::End();
 
         ImGui::Render();
