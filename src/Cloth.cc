@@ -32,7 +32,7 @@ Cloth::Cloth(int resolution, ID3D11Device* device)
             positions_.push_back(start_y - i * offset);
             float r = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
             r *= 0.05f;
-            positions_.push_back(r);
+            positions_.push_back(0.01f);
 
             normals_.push_back(0.0f);
             normals_.push_back(0.0f);

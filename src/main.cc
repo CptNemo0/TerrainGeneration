@@ -35,7 +35,7 @@ int main(int, char**)
     WNDCLASSEX wc = { sizeof(WNDCLASSEX), CS_CLASSDC, WndProc, 0L, 0L, GetModuleHandle(NULL), NULL, NULL, NULL, NULL, _T("Cloth Simulation"), NULL };
     ::RegisterClassEx(&wc);
     HWND hwnd = ::CreateWindow(wc.lpszClassName, _T("ClothSimulation"), WS_OVERLAPPEDWINDOW, 100, 100, WIDTH, HEIGHT, NULL, NULL, wc.hInstance, NULL);
-
+    
     // Initialize Direct3D
     if (!CreateDeviceD3D(hwnd))
     {
@@ -366,7 +366,7 @@ int main(int, char**)
     time_data.time = 0.0;
 
     DeltaTimeBuffer dt_data;
-    dt_data.dt = 0.0055f;
+    dt_data.dt = 0.003f;
     dt_data.idt = 1.0f / dt_data.dt;
     dt_data.t = 0.0f;
     dt_data.p1 = 0.0f;
@@ -471,7 +471,7 @@ int main(int, char**)
     bool rotate = false;
     bool render_wireframe = false;
 
-    bool run_sim = true;
+    bool run_sim = false;
     bool step_sim = false;
 
     int quality_steps = 20;
@@ -792,7 +792,7 @@ int main(int, char**)
 
 #pragma endregion
 
-        swap_chain->Present(1, 0);
+        swap_chain->Present(0, 0);
     }
 
     ImGui_ImplDX11_Shutdown();
