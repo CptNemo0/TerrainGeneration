@@ -1,6 +1,7 @@
 RWStructuredBuffer<float3> position_buffer : register(u0);
 RWStructuredBuffer<float3> previous_position : register(u1);
 RWStructuredBuffer<float3> velocity : register(u2);
+RWStructuredBuffer<uint3> jacobi : register(u3);
 
 cbuffer DeltaTime : register(b0)
 {
@@ -29,22 +30,34 @@ cbuffer Wind : register(b3)
     float3 w_direction;
 }
 
+cbuffer DispatchData : register(b4)
+{
+    float2 group_dim;
+    float vertex_per_group;
+}
+
 float rand3dTo1d(float3 value, float3 dotDir = float3(12.9898, 78.233, 37.719))
 {
     return frac(sin(value * 143758.5453));
 }
 
 [numthreads(32, 32, 1)]
-void CSMain(uint3 id : SV_DispatchThreadID)
+void CSMain(uint3 tid : SV_GroupThreadID, uint3 gid : SV_GroupID)
 {   
-    int i = id.x * 32 + id.y;
+    uint sx = gid.x * 32;
+    uint sy = gid.y * 32;
+    uint gx = sx + tid.x;
+    uint gy = sy + tid.y;
+    int i = gx + gy * 64;
     //float3 velocity = (position_buffer[id.x] - previous_position[id.x]) * idt * 0.9995;
     //previous_position[id.x] = position_buffer[id.x];
     
     //float wind_s = rand3dTo1d(position_buffer[id.x]);
     //wind_s *= wind_s * wind_s;
-   
+
     velocity[i] += dt * dt * imass * (fg);
-    previous_position[i] = position_buffer[i];
+    previous_position[i] = position_buffer[i];    
     position_buffer[i] += dt * velocity[i];
+    jacobi[i] = uint3(0.0, 0.0, 0.0);
+
 }

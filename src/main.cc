@@ -20,11 +20,6 @@
 #include <imgui_impl_win32.h>
 #include <imgui_impl_dx11.h>
 
-#include <tracy/Tracy.hpp>
-#ifndef TRACY_ENABLE
-#define TRACY_ENABLE
-#endif // !TRACY_ENABLE
-
 // Main code
 int main(int, char**)
 {
@@ -459,7 +454,7 @@ int main(int, char**)
         DirectX::XMVectorGetW(background_color_data.color) 
     };
 
-    Cloth cloth{ 3, device };
+    Cloth cloth{ 2, device };
     cloth.zero_normals_shader_ = &zero_normal_shader;
     cloth.recalculate_normals_shader_ = &recalculate_normal_shader;
     cloth.stride_ = stride;
@@ -552,15 +547,12 @@ int main(int, char**)
 
         if (run_sim || step_sim)
         {
-         
+            SetCBuffer(delta_time_constant_buffer, dt_data);
+            SetCBuffer(gravity_constant_buffer, gravity_data);
+            SetCBuffer(mass_constant_buffer, mass_data);
+            SetCBuffer(wind_constant_buffer, wind_data);
             for (int it = 0; it < quality_steps; it++)
             {
-                SetCBuffer(delta_time_constant_buffer, dt_data);
-                SetCBuffer(gravity_constant_buffer, gravity_data);
-                SetCBuffer(mass_constant_buffer, mass_data);
-                SetCBuffer(wind_constant_buffer, wind_data);
-
-     
                 BindCShader(update_position_shader);
                 context->CSSetConstantBuffers(0, 1, &delta_time_constant_buffer);
                 context->CSSetConstantBuffers(1, 1, &gravity_constant_buffer);
@@ -569,9 +561,9 @@ int main(int, char**)
                 context->CSSetUnorderedAccessViews(0, 1, &cloth.position_uav_, nullptr);
                 context->CSSetUnorderedAccessViews(1, 1, &cloth.previous_positions_uav_, nullptr);
                 context->CSSetUnorderedAccessViews(2, 1, &cloth.velocity_uav_, nullptr);
-                context->Dispatch(cloth.resolution_multiplier_ * cloth.resolution_multiplier_, 1, 1);
+                context->CSSetUnorderedAccessViews(3, 1, &cloth.jacobi_uav_, nullptr);
+                context->Dispatch(cloth.resolution_multiplier_, cloth.resolution_multiplier_, 1);
                 
-       
                 BindCShader(enforce_pin_shader);
                 context->CSSetConstantBuffers(0, 1, &delta_time_constant_buffer);
                 context->CSSetConstantBuffers(1, 1, &compliance_constant_buffer);
@@ -582,14 +574,24 @@ int main(int, char**)
                 context->CSSetShaderResources(0, 1, &cloth.cleaner_srv_);
                 context->CSSetUnorderedAccessViews(0, 1, &cleaner_uav, nullptr);
 
-        
                 BindCShader(streaching_constraints_shader);
                 context->CSSetConstantBuffers(0, 1, &delta_time_constant_buffer);
                 context->CSSetConstantBuffers(1, 1, &compliance_constant_buffer);
                 context->CSSetConstantBuffers(2, 1, &mass_constant_buffer);
                 
                 context->CSSetUnorderedAccessViews(0, 1, &cloth.position_uav_, nullptr);
-                for (int i = 0; i < 8; i++)
+                context->CSSetUnorderedAccessViews(1, 1, &cloth.jacobi_uav_, nullptr);
+                for (int i = 0; i < 4; i++)
+                {
+                    int x_dim = static_cast<int>(ceil(cloth.structural_constraints_[i].size() / 1024.0f));
+                    context->CSSetShaderResources(0, 1, &(cloth.sc_srvs_[i]));
+                    context->Dispatch(x_dim, 1, 1);
+                    context->CSSetShaderResources(0, 1, &cloth.cleaner_srv_);
+                }
+
+                BindCShader(streaching_constraints_jacobi_shader);
+
+                for (int i = 4; i < 8; i++)
                 {
                     int x_dim = static_cast<int>(ceil(cloth.structural_constraints_[i].size() / 1024.0f));
                     context->CSSetShaderResources(0, 1, &(cloth.sc_srvs_[i]));
@@ -597,7 +599,7 @@ int main(int, char**)
                     context->CSSetShaderResources(0, 1, &cloth.cleaner_srv_);
                 }
                 
-  
+                
                 SetCBuffer(compliance_constant_buffer, bending_compliance_data);
 
                 for (int i = 0; i < 4; i++)
@@ -617,7 +619,8 @@ int main(int, char**)
                 context->CSSetUnorderedAccessViews(0, 1, &cloth.position_uav_, nullptr);
                 context->CSSetUnorderedAccessViews(1, 1, &cloth.previous_positions_uav_, nullptr);
                 context->CSSetUnorderedAccessViews(2, 1, &cloth.velocity_uav_, nullptr);
-                context->Dispatch(cloth.resolution_multiplier_* cloth.resolution_multiplier_, 1, 1);
+                context->CSSetUnorderedAccessViews(3, 1, &cloth.jacobi_uav_, nullptr);
+                context->Dispatch(cloth.resolution_multiplier_, cloth.resolution_multiplier_, 1);
                 
             }
             
