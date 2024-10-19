@@ -114,7 +114,7 @@ Cloth::Cloth(int resolution, ID3D11Device* device)
 
     position_buffer_description_.Usage = D3D11_USAGE_DEFAULT;
     position_buffer_description_.BindFlags = D3D11_BIND_UNORDERED_ACCESS | D3D11_BIND_SHADER_RESOURCE;
-    position_buffer_description_.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+    position_buffer_description_.CPUAccessFlags = D3D11_USAGE_DEFAULT;
     position_buffer_description_.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
     position_buffer_description_.StructureByteStride = sizeof(float) * 3;
     position_buffer_description_.ByteWidth = sizeof(float) * 3 * resolution_ * resolution_;
@@ -138,7 +138,7 @@ Cloth::Cloth(int resolution, ID3D11Device* device)
 
     normal_buffer_description_.Usage = D3D11_USAGE_DEFAULT;
     normal_buffer_description_.BindFlags = D3D11_BIND_UNORDERED_ACCESS | D3D11_BIND_SHADER_RESOURCE;
-    normal_buffer_description_.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+    normal_buffer_description_.CPUAccessFlags = D3D11_USAGE_DEFAULT;
     normal_buffer_description_.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
     normal_buffer_description_.StructureByteStride = sizeof(float) * 3;
     normal_buffer_description_.ByteWidth = sizeof(float) * 3 * resolution_ * resolution_;
@@ -162,7 +162,7 @@ Cloth::Cloth(int resolution, ID3D11Device* device)
 
     previous_positions_buffer_description_.Usage = D3D11_USAGE_DEFAULT;
     previous_positions_buffer_description_.BindFlags = D3D11_BIND_UNORDERED_ACCESS;
-    previous_positions_buffer_description_.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+    previous_positions_buffer_description_.CPUAccessFlags = D3D11_USAGE_DEFAULT;
     previous_positions_buffer_description_.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
     previous_positions_buffer_description_.StructureByteStride = sizeof(float) * 3;
     previous_positions_buffer_description_.ByteWidth = sizeof(float) * 3 * resolution_ * resolution_;
@@ -211,7 +211,7 @@ Cloth::Cloth(int resolution, ID3D11Device* device)
 
         faces_buffer_description_.Usage = D3D11_USAGE_DEFAULT;
         faces_buffer_description_.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-        faces_buffer_description_.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+        faces_buffer_description_.CPUAccessFlags = D3D11_USAGE_DEFAULT;
         faces_buffer_description_.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
         faces_buffer_description_.StructureByteStride = sizeof(Face);
         faces_buffer_description_.ByteWidth = sizeof(Face) * faces_gpu_groups_[i].size();
@@ -364,7 +364,7 @@ Cloth::Cloth(int resolution, ID3D11Device* device)
 
         sc_buffer_description_.Usage = D3D11_USAGE_DEFAULT;
         sc_buffer_description_.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-        sc_buffer_description_.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+        sc_buffer_description_.CPUAccessFlags = D3D11_USAGE_DEFAULT;
         sc_buffer_description_.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
         sc_buffer_description_.StructureByteStride = sizeof(LinearConstraint);
         sc_buffer_description_.ByteWidth = sizeof(LinearConstraint) * structural_constraints_[i].size();
@@ -453,7 +453,7 @@ Cloth::Cloth(int resolution, ID3D11Device* device)
 
         bending_buffer_description_.Usage = D3D11_USAGE_DEFAULT;
         bending_buffer_description_.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-        bending_buffer_description_.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+        bending_buffer_description_.CPUAccessFlags = D3D11_USAGE_DEFAULT;
         bending_buffer_description_.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
         bending_buffer_description_.StructureByteStride = sizeof(LinearConstraint);
         bending_buffer_description_.ByteWidth = sizeof(LinearConstraint) * bending_constraints_[i].size();
@@ -495,7 +495,7 @@ Cloth::Cloth(int resolution, ID3D11Device* device)
 
     pc_buffer_description_.Usage = D3D11_USAGE_DEFAULT;
     pc_buffer_description_.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-    pc_buffer_description_.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+    pc_buffer_description_.CPUAccessFlags = D3D11_USAGE_DEFAULT;
     pc_buffer_description_.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
     pc_buffer_description_.StructureByteStride = sizeof(PinConstraint);
     pc_buffer_description_.ByteWidth = sizeof(PinConstraint) * pin_constraints_.size();
