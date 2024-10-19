@@ -547,9 +547,13 @@ int main(int, char**)
 
         ULONGLONG current_time = GetTickCount64();
         float t = (current_time - start_time) * 0.001f;
+        float dt = 10.0f * fmin(ImGui::GetIO().DeltaTime, 1.0f / 60.0f) / (quality_steps);
         grid_data.time = t;
         time_data.time = t;
+
         dt_data.t = t;
+        dt_data.dt = dt;
+        dt_data.idt = 1.0f / dt;
 
         if (run_sim || step_sim)
         {
@@ -758,7 +762,7 @@ int main(int, char**)
         
         ImGui::Checkbox("Render wireframe", &render_wireframe);
         
-        ImGui::SliderInt("Quality steps", &quality_steps, 1, 80);
+        ImGui::SliderInt("Quality steps", &quality_steps, 5, 80);
         ImGui::SliderFloat("Structure elasticity", &structural_compliance_data.alpha, 0.00005f, 0.1f, "%.4f");
         ImGui::SliderFloat("Flexibility", &bending_compliance_data.alpha, 0.001f, 0.2f);
         ImGui::SliderFloat("Gravity strength", &gravity_data.y, -100.0f, 0.0f);
