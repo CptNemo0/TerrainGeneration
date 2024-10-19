@@ -135,9 +135,9 @@ float4 PSMain(PixelInput input) : SV_Target
     float bias = 0.005;
     if (shadow_uv.z - 0.469 > shadow_depth)
     {
-        visibility = 0.1;
+        visibility = 0.2;
     }
     
-    float4 after_light = (ambient_light + visibility * (diffuse * sl_diffuse_color + spec * sl_specular_color) * attenuation * intensity) * color;
+    float4 after_light = (ambient_light + (diffuse * sl_diffuse_color + spec * sl_specular_color) * attenuation * intensity) * color * visibility;
     return after_light;
 }

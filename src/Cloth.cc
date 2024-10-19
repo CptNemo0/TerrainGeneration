@@ -2,6 +2,7 @@
 
 Cloth::Cloth(int resolution, ID3D11Device* device)
 {
+    srand(time(NULL));
 	resolution_multiplier_ = resolution;
 	resolution_ = 32 * resolution_multiplier_;
    
@@ -29,13 +30,17 @@ Cloth::Cloth(int resolution, ID3D11Device* device)
         {
             positions_.push_back(start_x + j * offset);
             positions_.push_back(start_y - i * offset);
-            positions_.push_back(0.1f);
+            float r = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+            r *= 0.05f;
+            positions_.push_back(r);
 
             normals_.push_back(0.0f);
             normals_.push_back(0.0f);
             normals_.push_back(1.0f);
         }
     }
+
+    std::cout << "Vertex count: " << positions_.size() / 3 << std::endl;
 
     bool up = true;
 
@@ -163,12 +168,37 @@ Cloth::Cloth(int resolution, ID3D11Device* device)
     previous_positions_buffer_description_.ByteWidth = sizeof(float) * 3 * resolution_ * resolution_;
     srd.pSysMem = &(positions_[0]);
 
-    if (static_cast<int>(device->CreateBuffer(&previous_positions_buffer_description_, &srd, &previous_positions_)))
+    if (static_cast<int>(device->CreateBuffer(&previous_positions_buffer_description_, &srd, &previous_positions_buffer_)))
     {
         std::cout << "Buffer creation failed\n";
         exit(1);
     }
-    if (static_cast<int>(device->CreateUnorderedAccessView(previous_positions_, &uav_description, &previous_positions_uav_)))
+    if (static_cast<int>(device->CreateUnorderedAccessView(previous_positions_buffer_, &uav_description, &previous_positions_uav_)))
+    {
+        std::cout << " UAV creation failed\n";
+        exit(1);
+    }
+
+    std::vector<float> zeros(positions_.size(), 0.0f);
+    srd.pSysMem = &(zeros[0]);
+
+    if (static_cast<int>(device->CreateBuffer(&previous_positions_buffer_description_, &srd, &velocity_buffer_)))
+    {
+        std::cout << "Buffer creation failed\n";
+        exit(1);
+    }
+    if (static_cast<int>(device->CreateUnorderedAccessView(velocity_buffer_, &uav_description, &velocity_uav_)))
+    {
+        std::cout << " UAV creation failed\n";
+        exit(1);
+    }
+
+    if (static_cast<int>(device->CreateBuffer(&previous_positions_buffer_description_, &srd, &jacobi_buffer_)))
+    {
+        std::cout << "Buffer creation failed\n";
+        exit(1);
+    }
+    if (static_cast<int>(device->CreateUnorderedAccessView(jacobi_buffer_, &uav_description, &jacobi_uav_)))
     {
         std::cout << " UAV creation failed\n";
         exit(1);

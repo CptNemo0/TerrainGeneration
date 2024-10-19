@@ -14,10 +14,16 @@
 
 #include <algorithm>
 #include <vector>
+#include <chrono>
 
 #include <imgui.h>
 #include <imgui_impl_win32.h>
 #include <imgui_impl_dx11.h>
+
+#include <tracy/Tracy.hpp>
+#ifndef TRACY_ENABLE
+#define TRACY_ENABLE
+#endif // !TRACY_ENABLE
 
 // Main code
 int main(int, char**)
@@ -313,8 +319,11 @@ int main(int, char**)
     CShader update_velocity_shader;
     CreateCShader(update_velocity_shader, L"../res/Shaders/UpdateVelocity.hlsl");
 
-    CShader enforce_structural_shader;
-    CreateCShader(enforce_structural_shader, L"../res/Shaders/EnforceStructural.hlsl");
+    CShader streaching_constraints_shader;
+    CreateCShader(streaching_constraints_shader, L"../res/Shaders/EnforceStructural.hlsl");
+
+    CShader streaching_constraints_jacobi_shader;
+    CreateCShader(streaching_constraints_jacobi_shader, L"../res/Shaders/StreachingConstraintsJacobi.hlsl");
 
     CShader enforce_pin_shader;
     CreateCShader(enforce_pin_shader, L"../res/Shaders/EnoforcePin.hlsl");
@@ -362,7 +371,7 @@ int main(int, char**)
     time_data.time = 0.0;
 
     DeltaTimeBuffer dt_data;
-    dt_data.dt = 0.0035f;
+    dt_data.dt = 0.0055f;
     dt_data.idt = 1.0f / dt_data.dt;
     dt_data.t = 0.0f;
     dt_data.p1 = 0.0f;
@@ -381,7 +390,7 @@ int main(int, char**)
     structural_compliance_data.alpha = 0.0001f;
 
     ComplianceBuffer bending_compliance_data;
-    bending_compliance_data.alpha = 0.2f;
+    bending_compliance_data.alpha = 0.01f;
 
     WindBuffer wind_data;
     wind_data.strength_mul = 1.0f;
@@ -450,7 +459,7 @@ int main(int, char**)
         DirectX::XMVectorGetW(background_color_data.color) 
     };
 
-    Cloth cloth{ 2, device };
+    Cloth cloth{ 3, device };
     cloth.zero_normals_shader_ = &zero_normal_shader;
     cloth.recalculate_normals_shader_ = &recalculate_normal_shader;
     cloth.stride_ = stride;
@@ -500,7 +509,7 @@ int main(int, char**)
                 camera_position_iv = DirectX::XMVectorSet(camera_distance * x, camera_distance * y, camera_distance * z, 1.0f);
                 view_proj_data.view_matrix = DirectX::XMMatrixLookAtLH(camera_position_iv, center_position_iv, up_direction_iv);
             }
-            else if (msg.message = WM_MOUSEMOVE)
+            else if (msg.message == WM_MOUSEMOVE)
             {
                 int mouseX = GET_X_LPARAM(msg.lParam);
                 int mouseY = GET_Y_LPARAM(msg.lParam);
@@ -543,6 +552,7 @@ int main(int, char**)
 
         if (run_sim || step_sim)
         {
+         
             for (int it = 0; it < quality_steps; it++)
             {
                 SetCBuffer(delta_time_constant_buffer, dt_data);
@@ -550,6 +560,7 @@ int main(int, char**)
                 SetCBuffer(mass_constant_buffer, mass_data);
                 SetCBuffer(wind_constant_buffer, wind_data);
 
+     
                 BindCShader(update_position_shader);
                 context->CSSetConstantBuffers(0, 1, &delta_time_constant_buffer);
                 context->CSSetConstantBuffers(1, 1, &gravity_constant_buffer);
@@ -557,8 +568,10 @@ int main(int, char**)
                 context->CSSetConstantBuffers(3, 1, &wind_constant_buffer);
                 context->CSSetUnorderedAccessViews(0, 1, &cloth.position_uav_, nullptr);
                 context->CSSetUnorderedAccessViews(1, 1, &cloth.previous_positions_uav_, nullptr);
-                context->Dispatch(cloth.resolution_multiplier_* cloth.resolution_multiplier_, 1, 1);
-
+                context->CSSetUnorderedAccessViews(2, 1, &cloth.velocity_uav_, nullptr);
+                context->Dispatch(cloth.resolution_multiplier_ * cloth.resolution_multiplier_, 1, 1);
+                
+       
                 BindCShader(enforce_pin_shader);
                 context->CSSetConstantBuffers(0, 1, &delta_time_constant_buffer);
                 context->CSSetConstantBuffers(1, 1, &compliance_constant_buffer);
@@ -569,7 +582,8 @@ int main(int, char**)
                 context->CSSetShaderResources(0, 1, &cloth.cleaner_srv_);
                 context->CSSetUnorderedAccessViews(0, 1, &cleaner_uav, nullptr);
 
-                BindCShader(enforce_structural_shader);
+        
+                BindCShader(streaching_constraints_shader);
                 context->CSSetConstantBuffers(0, 1, &delta_time_constant_buffer);
                 context->CSSetConstantBuffers(1, 1, &compliance_constant_buffer);
                 context->CSSetConstantBuffers(2, 1, &mass_constant_buffer);
@@ -583,6 +597,7 @@ int main(int, char**)
                     context->CSSetShaderResources(0, 1, &cloth.cleaner_srv_);
                 }
                 
+  
                 SetCBuffer(compliance_constant_buffer, bending_compliance_data);
 
                 for (int i = 0; i < 4; i++)
@@ -594,13 +609,23 @@ int main(int, char**)
                 }
                 context->CSSetUnorderedAccessViews(0, 1, &cleaner_uav, nullptr);
 
+                BindCShader(update_velocity_shader);
+                context->CSSetConstantBuffers(0, 1, &delta_time_constant_buffer);
+                context->CSSetConstantBuffers(1, 1, &gravity_constant_buffer);
+                context->CSSetConstantBuffers(2, 1, &mass_constant_buffer);
+                context->CSSetConstantBuffers(3, 1, &wind_constant_buffer);
+                context->CSSetUnorderedAccessViews(0, 1, &cloth.position_uav_, nullptr);
+                context->CSSetUnorderedAccessViews(1, 1, &cloth.previous_positions_uav_, nullptr);
+                context->CSSetUnorderedAccessViews(2, 1, &cloth.velocity_uav_, nullptr);
+                context->Dispatch(cloth.resolution_multiplier_* cloth.resolution_multiplier_, 1, 1);
+                
             }
             
             cloth.TangentUpdate(context);
             if (step_sim)
             {
                 step_sim = false;
-            }
+            }            
         }
         
 #pragma region Shadow map
@@ -719,7 +744,7 @@ int main(int, char**)
         
         ImGui::SliderInt("Quality steps", &quality_steps, 1, 80);
         ImGui::SliderFloat("Structure elasticity", &structural_compliance_data.alpha, 0.00005f, 0.1f, "%.4f");
-        ImGui::SliderFloat("Flexibility", &bending_compliance_data.alpha, 0.001f, 2.0f);
+        ImGui::SliderFloat("Flexibility", &bending_compliance_data.alpha, 0.001f, 0.2f);
         ImGui::SliderFloat("Gravity strength", &gravity_data.y, -100.0f, 0.0f);
         ImGui::SliderFloat("Wind strength", &wind_data.strength_mul, 0.0f, 100.0f);
 

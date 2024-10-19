@@ -52,6 +52,17 @@ FetchContent_Populate(glm)
 FetchContent_MakeAvailable(glm)
 ################################################ end glm
 
+################################################ tracy
+FetchContent_Declare (
+tracy
+GIT_REPOSITORY https://github.com/wolfpld/tracy.git
+GIT_TAG master
+GIT_SHALLOW TRUE
+GIT_PROGRESS TRUE
+)
+FetchContent_MakeAvailable ( tracy )
+################################################ end tracy
+
 #add source files
 include_directories(${CPP_INCLUDE_DIRS})
 
@@ -96,7 +107,9 @@ target_include_directories(${PROJECT_NAME}
     ${imgui_SOURCE_DIR}/backends
 )
 
-target_link_libraries(${PROJECT_NAME} d3d11)
+target_link_libraries(${PROJECT_NAME} 
+		      PUBLIC d3d11
+		      PUBLIC TracyClient)
 
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD 
 				   COMMAND ${CMAKE_COMMAND} -E create_symlink 

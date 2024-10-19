@@ -1,10 +1,4 @@
-struct Vertex
-{
-    float3 position;
-    float3 normal;
-};
-
-RWStructuredBuffer<Vertex> output_buffer : register(u0);
+RWStructuredBuffer<float3> position : register(u0);
 RWStructuredBuffer<float3> previous_position : register(u1);
 RWStructuredBuffer<float3> velocity : register(u2);
 
@@ -28,9 +22,9 @@ cbuffer Mass : register(b2)
     float2 padding_m;
 };
 
-[numthreads(1024, 1, 1)]
+[numthreads(32, 32, 1)]
 void CSMain(uint3 id : SV_DispatchThreadID)
 {
-    velocity[id.x] = (output_buffer[id.x].position - previous_position[id.x]) * idt * 0.99975;
-    previous_position[id.x] = output_buffer[id.x].position;
+    int i = id.x * 32 + id.y;
+    velocity[i] = (position[i] - previous_position[i]) * idt * 0.99975;
 }

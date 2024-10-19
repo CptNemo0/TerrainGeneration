@@ -41,10 +41,16 @@ public:
     ID3D11ShaderResourceView* normal_srv_ = nullptr;
     D3D11_BUFFER_DESC normal_buffer_description_;
    
-    ID3D11Buffer* previous_positions_ = nullptr;
+    ID3D11Buffer* previous_positions_buffer_ = nullptr;
     ID3D11UnorderedAccessView* previous_positions_uav_ = nullptr;
     D3D11_BUFFER_DESC previous_positions_buffer_description_;
    
+    ID3D11Buffer* velocity_buffer_ = nullptr;
+    ID3D11UnorderedAccessView* velocity_uav_ = nullptr;
+    
+    ID3D11Buffer* jacobi_buffer_ = nullptr;
+    ID3D11UnorderedAccessView* jacobi_uav_ = nullptr;
+
     std::vector<ID3D11Buffer*> faces_buffers_;
     std::vector<ID3D11ShaderResourceView*> faces_srvs_;
     D3D11_BUFFER_DESC faces_buffer_description_;

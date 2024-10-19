@@ -7,6 +7,7 @@ struct LinearConstraint
 };
 
 RWStructuredBuffer<float3> position_buffer : register(u0);
+RWStructuredBuffer<uint3> jacobi_buffer : register(u1);
 StructuredBuffer<LinearConstraint> constraints : register(t0);
 
 cbuffer DeltaTime : register(b0)
@@ -29,11 +30,10 @@ cbuffer Mass : register(b2)
     float2 padding_m;
 };
 
-[numthreads(32, 32, 1)]
+[numthreads(1024, 1, 1)]
 void CSMain(uint3 id : SV_DispatchThreadID)
 {
-    int i = id.x * 32 + id.y;
-    LinearConstraint constraint = constraints[i];
+    LinearConstraint constraint = constraints[id.x];
     float3 a = position_buffer[constraint.idx_a];
     float3 b = position_buffer[constraint.idx_b];
     
@@ -50,7 +50,14 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     float m = lambda * imass;
     a += m * ga;
     b -= m * ga;
+        
+    uint3 ua = asuint(a);
+    uint3 ub = asuint(b);
     
-    position_buffer[constraint.idx_a] = a;
-    position_buffer[constraint.idx_b] = b;
+    InterlockedAdd(jacobi_buffer[constraint.idx_a].x, ua.x);
+    InterlockedAdd(jacobi_buffer[constraint.idx_a].y, ua.y);
+    InterlockedAdd(jacobi_buffer[constraint.idx_a].z, ua.z);
+    InterlockedAdd(jacobi_buffer[constraint.idx_b].x, ub.x);
+    InterlockedAdd(jacobi_buffer[constraint.idx_b].y, ub.y);
+    InterlockedAdd(jacobi_buffer[constraint.idx_b].z, ub.z);
 }
