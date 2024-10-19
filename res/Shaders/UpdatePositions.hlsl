@@ -30,10 +30,10 @@ cbuffer Wind : register(b3)
     float3 w_direction;
 }
 
-cbuffer DispatchData : register(b4)
+cbuffer Resolution : register(b4)
 {
-    float2 group_dim;
-    float vertex_per_group;
+    uint resolution;
+    float3 padding_r;
 }
 
 float rand3dTo1d(float3 value, float3 dotDir = float3(12.9898, 78.233, 37.719))
@@ -48,7 +48,7 @@ void CSMain(uint3 tid : SV_GroupThreadID, uint3 gid : SV_GroupID)
     uint sy = gid.y * 32;
     uint gx = sx + tid.x;
     uint gy = sy + tid.y;
-    int i = gx + gy * 64;
+    int i = gx + gy * resolution;
     //float3 velocity = (position_buffer[id.x] - previous_position[id.x]) * idt * 0.9995;
     //previous_position[id.x] = position_buffer[id.x];
     

@@ -94,5 +94,11 @@ struct WindBuffer
 	float z;
 };
 
+struct ResolutionBuffer
+{
+	int resolution;
+	int p1, p2, p3;
+};
+
 #endif // !CONSTANT_BUFFER_STRUCTS_H
 
