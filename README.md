@@ -14,8 +14,5 @@ Steering:
 
 YouTube video: https://www.youtube.com/watch?v=psMpRK0Np5k
 
-![Solid Image](./images/Solid.png)
-<p align="center">Solid mode.</p>
-
-![Wireframe Image](./images/Wireframe.png)
-<p align="center">Wireframe mode.</p>
+![Solid Image](./images/Photo.png)
+<p align="center">Result at 16k vertices (2 ss' glued together).</p>
