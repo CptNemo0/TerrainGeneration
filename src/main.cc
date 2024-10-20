@@ -378,7 +378,7 @@ int main(int, char**)
     gravity_data.p1 = 0.0f;
 
     MassBuffer mass_data;
-    mass_data.mass = 0.3f;
+    mass_data.mass = 0.4f;
     mass_data.imass = 1.0f/ mass_data.mass;
 
     ComplianceBuffer structural_compliance_data;
@@ -460,7 +460,7 @@ int main(int, char**)
         DirectX::XMVectorGetW(background_color_data.color) 
     };
 
-    Cloth cloth{ 8, device };
+    Cloth cloth{ 5, device };
     cloth.zero_normals_shader_ = &zero_normal_shader;
     cloth.recalculate_normals_shader_ = &recalculate_normal_shader;
     cloth.stride_ = stride;
@@ -592,24 +592,44 @@ int main(int, char**)
                 context->CSSetConstantBuffers(0, 1, &delta_time_constant_buffer);
                 context->CSSetConstantBuffers(1, 1, &compliance_constant_buffer);
                 context->CSSetConstantBuffers(2, 1, &mass_constant_buffer);
+                context->CSSetConstantBuffers(3, 1, &resolutiom_constant_buffer);
                 
                 context->CSSetUnorderedAccessViews(0, 1, &cloth.position_uav_, nullptr);
                 context->CSSetUnorderedAccessViews(1, 1, &cloth.jacobi_uav_, nullptr);
                 for (int i = 0; i < 4; i++)
                 {
-                    int x_dim = static_cast<int>(ceil(cloth.structural_constraints_[i].size() / 1024.0f));
+                    int g = static_cast<int>(cloth.structural_constraints_[i].size());
+                    int ydim = 4;
+                    int zdim = 4;
+                    float xdim_f = static_cast<float>(g) / static_cast<float>(ydim * zdim * 128);
+                    float xdim = static_cast<int>(ceil(xdim_f));
+                    int z_mul = static_cast<int>(xdim_f * ydim * 128);
+                    int resolution = xdim * 32;
+                    resolution_data.resolution = resolution;
+                    resolution_data.z_multiplier = z_mul;
+                    SetCBuffer(resolutiom_constant_buffer, resolution_data);
                     context->CSSetShaderResources(0, 1, &(cloth.sc_srvs_[i]));
-                    context->Dispatch(x_dim, 1, 1);
+                    context->Dispatch(xdim, 4, 4);
                     context->CSSetShaderResources(0, 1, &cloth.cleaner_srv_);
                 }
 
                 BindCShader(streaching_constraints_jacobi_shader);
+                context->CSSetConstantBuffers(3, 1, &resolutiom_constant_buffer);
 
                 for (int i = 4; i < 8; i++)
                 {
-                    int x_dim = static_cast<int>(ceil(cloth.structural_constraints_[i].size() / 1024.0f));
+                    int g = static_cast<int>(cloth.structural_constraints_[i].size());
+                    int ydim = 4;
+                    int zdim = 4;
+                    float xdim_f = static_cast<float>(g) / static_cast<float>(ydim * zdim * 128);
+                    float xdim = static_cast<int>(ceil(xdim_f));
+                    int z_mul = static_cast<int>(xdim_f * ydim * 128);
+                    int resolution = xdim * 32;
+                    resolution_data.resolution = resolution;
+                    resolution_data.z_multiplier = z_mul;
+                    SetCBuffer(resolutiom_constant_buffer, resolution_data);
                     context->CSSetShaderResources(0, 1, &(cloth.sc_srvs_[i]));
-                    context->Dispatch(x_dim, 1, 1);
+                    context->Dispatch(xdim, ydim, zdim);
                     context->CSSetShaderResources(0, 1, &cloth.cleaner_srv_);
                 }
                 
@@ -618,9 +638,18 @@ int main(int, char**)
 
                 for (int i = 0; i < 4; i++)
                 {
-                    int x_dim = static_cast<int>(ceil(cloth.bending_constraints_[i].size() / 1024.0f));
+                    int g = static_cast<int>(cloth.structural_constraints_[i].size());
+                    int ydim = 4;
+                    int zdim = 4;
+                    float xdim_f = static_cast<float>(g) / static_cast<float>(ydim * zdim * 128);
+                    float xdim = static_cast<int>(ceil(xdim_f));
+                    int z_mul = static_cast<int>(xdim_f * ydim * 128);
+                    int resolution = xdim * 32;
+                    resolution_data.resolution = resolution;
+                    resolution_data.z_multiplier = z_mul;
+                    SetCBuffer(resolutiom_constant_buffer, resolution_data);
                     context->CSSetShaderResources(0, 1, &(cloth.bending_srvs_[i]));
-                    context->Dispatch(x_dim, 1, 1);
+                    context->Dispatch(xdim, ydim, zdim);
                     context->CSSetShaderResources(0, 1, &cloth.cleaner_srv_);
                 }
                 context->CSSetUnorderedAccessViews(0, 1, &cleaner_uav, nullptr);

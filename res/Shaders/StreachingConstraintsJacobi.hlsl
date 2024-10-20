@@ -30,10 +30,24 @@ cbuffer Mass : register(b2)
     float2 padding_m;
 };
 
-[numthreads(1024, 1, 1)]
-void CSMain(uint3 id : SV_DispatchThreadID)
+cbuffer Resolution : register(b4)
 {
-    LinearConstraint constraint = constraints[id.x];
+    uint resolution;
+    uint z_multiplier;
+    float2 padding_r;
+}
+
+[numthreads(32, 4, 1)]
+void CSMain(uint3 tid : SV_GroupThreadID, uint3 gid : SV_GroupID)
+{
+    uint sz = z_multiplier * gid.z;
+    uint sx = gid.x * 32;
+    uint sy = gid.y * 4;
+    uint gx = sx + tid.x;
+    uint gy = sy + tid.y;
+    int i = sz + gx + gy * resolution;
+    
+    LinearConstraint constraint = constraints[i];
     float3 a = position_buffer[constraint.idx_a];
     float3 b = position_buffer[constraint.idx_b];
     
