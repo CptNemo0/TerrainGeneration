@@ -51,8 +51,6 @@ void CSMain(uint3 tid : SV_GroupThreadID, uint3 gid : SV_GroupID)
     uint gx = sx + tid.x;
     uint gy = sy + tid.y;
     int i = sz + gx + gy * resolution;
-    //float3 velocity = (position_buffer[id.x] - previous_position[id.x]) * idt * 0.9995;
-    //previous_position[id.x] = position_buffer[id.x];
     
     float wind_s = rand3dTo1d(position_buffer[i]);
     wind_s *= wind_s * wind_s;

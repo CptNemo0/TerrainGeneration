@@ -2,16 +2,21 @@
 
 Cloth::Cloth(int resolution, ID3D11Device* device)
 {
+    Init(resolution, device);
+}
+
+void Cloth::Init(int resolution, ID3D11Device* device)
+{
     srand(time(NULL));
-	resolution_multiplier_ = resolution;
-	resolution_ = 32 * resolution_multiplier_;
-   
-	ZeroMemory(&index_buffer_description_, sizeof(D3D11_BUFFER_DESC));
+    resolution_multiplier_ = resolution;
+    resolution_ = 32 * resolution_multiplier_;
+
+    ZeroMemory(&index_buffer_description_, sizeof(D3D11_BUFFER_DESC));
 
     ZeroMemory(&position_buffer_description_, sizeof(D3D11_BUFFER_DESC));
     ZeroMemory(&previous_positions_buffer_description_, sizeof(D3D11_BUFFER_DESC));
     ZeroMemory(&faces_buffer_description_, sizeof(D3D11_BUFFER_DESC));
-	ZeroMemory(&faces_srv_description_, sizeof(D3D11_SHADER_RESOURCE_VIEW_DESC));
+    ZeroMemory(&faces_srv_description_, sizeof(D3D11_SHADER_RESOURCE_VIEW_DESC));
     ZeroMemory(&sc_buffer_description_, sizeof(D3D11_BUFFER_DESC));
     ZeroMemory(&sc_srv_description_, sizeof(D3D11_SHADER_RESOURCE_VIEW_DESC));
     ZeroMemory(&bending_buffer_description_, sizeof(D3D11_BUFFER_DESC));
@@ -80,10 +85,10 @@ Cloth::Cloth(int resolution, ID3D11Device* device)
             }
         }
     }
-  
+
     index_buffer_description_.ByteWidth = sizeof(Face) * faces_.size();
     index_buffer_description_.BindFlags = D3D11_BIND_INDEX_BUFFER;
-    
+
     index_srd_.pSysMem = &(faces_[0]);
     index_srd_.SysMemPitch = 0;
     index_srd_.SysMemSlicePitch = 0;
@@ -94,7 +99,7 @@ Cloth::Cloth(int resolution, ID3D11Device* device)
         exit(1);
     }
 
-    
+
     D3D11_SHADER_RESOURCE_VIEW_DESC srv_description;
     ZeroMemory(&srv_description, sizeof(D3D11_SHADER_RESOURCE_VIEW_DESC));
     srv_description.Format = DXGI_FORMAT_UNKNOWN;
@@ -119,7 +124,7 @@ Cloth::Cloth(int resolution, ID3D11Device* device)
     position_buffer_description_.StructureByteStride = sizeof(float) * 3;
     position_buffer_description_.ByteWidth = sizeof(float) * 3 * resolution_ * resolution_;
     srd.pSysMem = &(positions_[0]);
-    
+
     if (static_cast<int>(device->CreateBuffer(&position_buffer_description_, &srd, &position_buffer_)))
     {
         std::cout << "Buffer creation failed\n";
@@ -217,7 +222,7 @@ Cloth::Cloth(int resolution, ID3D11Device* device)
         faces_buffer_description_.ByteWidth = sizeof(Face) * faces_gpu_groups_[i].size();
 
         srd.pSysMem = &(faces_gpu_groups_[i][0]);
-        
+
         faces_srv_description_.Format = DXGI_FORMAT_UNKNOWN;
         faces_srv_description_.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
         faces_srv_description_.Buffer.FirstElement = 0;
@@ -237,18 +242,18 @@ Cloth::Cloth(int resolution, ID3D11Device* device)
     }
 
 
-    float edge_len = 2.0f / static_cast<float>(resolution_ -1 );
+    float edge_len = 2.0f / static_cast<float>(resolution_ - 1);
     float d_len = edge_len * sqrtf(2.0f);
 
-    for (int i = 0; i < 8 ; i++)
+    for (int i = 0; i < 8; i++)
     {
         structural_constraints_.push_back({});
     }
-    
+
     //RED
     for (int i = 0; i < resolution_; i++)
     {
-        for (int j = 0; j < resolution_ - 1; j+=2)
+        for (int j = 0; j < resolution_ - 1; j += 2)
         {
             int idx = i * resolution_ + j;
             LinearConstraint c;
@@ -274,7 +279,7 @@ Cloth::Cloth(int resolution, ID3D11Device* device)
     }
 
     //GREEN
-    for (int i = 0; i < resolution_ - 1; i+=2)
+    for (int i = 0; i < resolution_ - 1; i += 2)
     {
         for (int j = 0; j < resolution_; j++)
         {
@@ -432,7 +437,7 @@ Cloth::Cloth(int resolution, ID3D11Device* device)
             bending_constraints_[2].push_back(c);
         }
     }
-    
+
     for (int i = 1; i < resolution_ - 1; i += 2)
     {
         for (int j = 1; j < resolution_ - 1; j += 2)
@@ -489,7 +494,7 @@ Cloth::Cloth(int resolution, ID3D11Device* device)
     pin2.x = positions_[(resolution_ - 1) * 3];
     pin2.y = positions_[(resolution_ - 1) * 3 + 1];
     pin2.z = positions_[(resolution_ - 1) * 3 + 2];
-    
+
     pin_constraints_.push_back(pin1);
     pin_constraints_.push_back(pin2);
 
@@ -523,8 +528,101 @@ Cloth::Cloth(int resolution, ID3D11Device* device)
     inverse_mass_ = 1.0f;
 }
 
-void Cloth::Update(float dt)
+void Cloth::CleanUp()
 {
+    positions_.clear();
+    normals_.clear();
+    faces_.clear();
+    for (auto& e : faces_gpu_groups_)
+    {
+        e.clear();
+    }
+    faces_gpu_groups_.clear();
+    index_buffer_->Release();
+    index_buffer_ = nullptr;
+
+    position_buffer_->Release();
+    position_buffer_ = nullptr;
+    position_uav_->Release();
+    position_uav_ = nullptr;
+    position_srv_->Release();
+    position_srv_ = nullptr;
+    
+    normal_buffer_->Release();
+    normal_buffer_ = nullptr;
+    normal_uav_->Release();
+    normal_uav_ = nullptr;
+    normal_srv_->Release();
+    normal_srv_ = nullptr;
+
+    previous_positions_buffer_->Release();
+    previous_positions_buffer_ = nullptr;
+
+    previous_positions_uav_->Release();
+    previous_positions_uav_ = nullptr;
+
+    velocity_buffer_->Release();
+    velocity_buffer_ = nullptr;
+
+    velocity_uav_->Release();
+    velocity_uav_ = nullptr;
+
+    jacobi_buffer_->Release();
+    jacobi_buffer_ = nullptr;
+
+    jacobi_uav_->Release();
+    jacobi_uav_ = nullptr;
+
+    for (auto& e : faces_buffers_)
+    {
+        e->Release();
+        e = nullptr;
+    }
+    faces_buffers_.clear();
+
+    for (auto& e : faces_srvs_)
+    {
+        e->Release();
+        e = nullptr;
+    }
+    faces_srvs_.clear();
+
+    structural_constraints_.clear();
+    for (auto& e : sc_buffers_)
+    {
+        e->Release();
+        e = nullptr;
+    }
+    sc_buffers_.clear();
+
+    for (auto& e : sc_srvs_)
+    {
+        e->Release();
+        e = nullptr;
+    }
+    sc_srvs_.clear();
+
+    bending_constraints_.clear();
+    for (auto& e : bending_buffers_)
+    {
+        e->Release();
+        e = nullptr;
+    }
+    bending_buffers_.clear();
+
+    for (auto& e : bending_srvs_)
+    {
+        e->Release();
+        e = nullptr;
+    }
+    bending_srvs_.clear();
+
+    pin_constraints_.clear();
+    pc_buffer_->Release();
+    pc_buffer_ = nullptr;
+
+    pc_srvs_->Release();
+    pc_srvs_ = nullptr;
 }
 
 void Cloth::Draw(ID3D11DeviceContext* context)

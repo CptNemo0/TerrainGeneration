@@ -52,17 +52,6 @@ FetchContent_Populate(glm)
 FetchContent_MakeAvailable(glm)
 ################################################ end glm
 
-################################################ tracy
-FetchContent_Declare (
-tracy
-GIT_REPOSITORY https://github.com/wolfpld/tracy.git
-GIT_TAG master
-GIT_SHALLOW TRUE
-GIT_PROGRESS TRUE
-)
-FetchContent_MakeAvailable ( tracy )
-################################################ end tracy
-
 #add source files
 include_directories(${CPP_INCLUDE_DIRS})
 
@@ -70,12 +59,14 @@ list(APPEND CPP_SOURCE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cc)
 list(APPEND CPP_SOURCE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/Shader.cc)
 list(APPEND CPP_SOURCE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/ConstantBufferStructs.cc)
 list(APPEND CPP_SOURCE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/Cloth.cc)
+list(APPEND CPP_SOURCE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/App.cc)
 
 list(APPEND CPP_SOURCE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/include/Shader.h)
 list(APPEND CPP_SOURCE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/include/ConstantBufferStructs.h)
 list(APPEND CPP_SOURCE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/include/global.h)
 list(APPEND CPP_SOURCE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/include/Cloth.h)
 list(APPEND CPP_SOURCE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/include/Structs.h)
+list(APPEND CPP_SOURCE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/include/App.h)
 
 # Search for the assets files
 file(GLOB_RECURSE ASSETS_FILES 
@@ -108,8 +99,7 @@ target_include_directories(${PROJECT_NAME}
 )
 
 target_link_libraries(${PROJECT_NAME} 
-		      PUBLIC d3d11
-		      PUBLIC TracyClient)
+		      PUBLIC d3d11)
 
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD 
 				   COMMAND ${CMAKE_COMMAND} -E create_symlink 

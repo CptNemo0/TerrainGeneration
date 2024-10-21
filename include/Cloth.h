@@ -87,7 +87,8 @@ public:
     float inverse_mass_;
 
     Cloth(int resolution, ID3D11Device* device);
-    void Update(float dt);
+    void Init(int resolution, ID3D11Device* device);
+    void CleanUp();
     void Draw(ID3D11DeviceContext* context);
     void TangentUpdate(ID3D11DeviceContext* context);
 };
