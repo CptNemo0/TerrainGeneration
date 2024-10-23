@@ -498,6 +498,29 @@ void Cloth::Init(int resolution, ID3D11Device* device)
     pin_constraints_.push_back(pin1);
     pin_constraints_.push_back(pin2);
 
+    std::queue<std::pair<PinConstraint, PinConstraint>> pin_pairs;
+    pin_pairs.emplace(pin1, pin2);
+
+    while (!pin_pairs.empty() && pin_constraints_.size() < 10)
+    {
+        auto current = pin_pairs.front();
+        pin_pairs.pop();
+
+        auto left = current.first;
+        auto right = current.second;
+
+        int mid = (left.idx + right.idx) / 2;
+
+        PinConstraint new_constraint;
+        new_constraint.idx = mid;
+        new_constraint.x = positions_[mid * 3];
+        new_constraint.x = positions_[(mid + 1) * 3];
+        new_constraint.x = positions_[(mid + 2) * 3];
+        pin_pairs.emplace(current.first, new_constraint);
+        pin_pairs.emplace(new_constraint, current.second);
+        pin_constraints_.push_back(new_constraint);
+    }
+
     pc_buffer_description_.Usage = D3D11_USAGE_DEFAULT;
     pc_buffer_description_.BindFlags = D3D11_BIND_SHADER_RESOURCE;
     pc_buffer_description_.CPUAccessFlags = D3D11_USAGE_DEFAULT;

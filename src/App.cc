@@ -738,6 +738,8 @@ void App::Run()
     bool run_sim = false;
     bool step_sim = false;
 
+    int pin_amount = 2;
+
     int quality_steps = 20;
 
     POINT prev_mouse_pos = { 0, 0 };
@@ -853,7 +855,7 @@ void App::Run()
                 context_->CSSetConstantBuffers(2, 1, &mass_constant_buffer);
                 context_->CSSetUnorderedAccessViews(0, 1, &cloth.position_uav_, nullptr);
                 context_->CSSetShaderResources(0, 1, &(cloth.pc_srvs_));
-                context_->Dispatch(cloth.pin_constraints_.size(), 1, 1);
+                context_->Dispatch(pin_amount, 1, 1);
 
                 BindCShader(streaching_constraints_shader);
                 context_->CSSetConstantBuffers(0, 1, &delta_time_constant_buffer);
@@ -1058,6 +1060,7 @@ void App::Run()
         ImGui::SliderFloat("Flexibility", &bending_compliance_data.alpha, 0.001f, 0.5f);
         ImGui::SliderFloat("Gravity strength", &gravity_data.y, -100.0f, 0.0f);
         ImGui::SliderFloat("Wind strength", &wind_data.strength_mul, 0.0f, 100.0f);
+        ImGui::SliderInt("Pin amount", &pin_amount, 0, 10);
 
         if (ImGui::Button("Stop simulation"))
         {
