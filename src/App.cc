@@ -1060,7 +1060,7 @@ void App::Run()
         ImGui::SliderFloat("Flexibility", &bending_compliance_data.alpha, 0.001f, 0.5f);
         ImGui::SliderFloat("Gravity strength", &gravity_data.y, -100.0f, 0.0f);
         ImGui::SliderFloat("Wind strength", &wind_data.strength_mul, 0.0f, 100.0f);
-        ImGui::SliderInt("Pin amount", &pin_amount, 0, 10);
+        ImGui::SliderInt("Pin amount", &pin_amount, 0, 9);
 
         if (ImGui::Button("Stop simulation"))
         {
