@@ -27,8 +27,17 @@ cbuffer Mass : register(b2)
     float2 padding_m;
 };
 
+cbuffer PinBitmaskBuffer : register(b3)
+{
+    int mask;
+    int3 padding;
+}
+
 [numthreads(1, 1, 1)]
 void CSMain(uint3 id : SV_DispatchThreadID)
 {
-    position_buffer[constraints[id.x].idx] = constraints[id.x].position;
+    if ((mask >> id.x) & 1)
+    {
+        position_buffer[constraints[id.x].idx] = constraints[id.x].position;
+    }
 }

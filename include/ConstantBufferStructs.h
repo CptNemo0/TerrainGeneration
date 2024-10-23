@@ -101,5 +101,11 @@ struct ResolutionBuffer
 	int p2, p3;
 };
 
+struct PinBitmaskBuffer
+{
+	int mask;
+	int p1, p2, p3;
+};
+
 #endif // !CONSTANT_BUFFER_STRUCTS_H
 

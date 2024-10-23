@@ -521,6 +521,11 @@ void Cloth::Init(int resolution, ID3D11Device* device)
         pin_constraints_.push_back(new_constraint);
     }
 
+    std::sort(pin_constraints_.begin(), pin_constraints_.end(), [](PinConstraint a, PinConstraint b)
+    {
+        return a.idx > b.idx;
+    });
+
     pc_buffer_description_.Usage = D3D11_USAGE_DEFAULT;
     pc_buffer_description_.BindFlags = D3D11_BIND_SHADER_RESOURCE;
     pc_buffer_description_.CPUAccessFlags = D3D11_USAGE_DEFAULT;

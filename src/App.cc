@@ -659,6 +659,9 @@ void App::Run()
     ResolutionBuffer resolution_data;
     resolution_data.resolution = 64;
 
+    PinBitmaskBuffer pin_bitmask_data;
+    pin_bitmask_data.mask = 0b000000011;
+
     ID3D11Buffer* color_constant_buffer = nullptr;
     CreateCBuffer(&color_constant_buffer, color_data);
 
@@ -700,6 +703,9 @@ void App::Run()
 
     ID3D11Buffer* resolutiom_constant_buffer;
     CreateCBuffer(&resolutiom_constant_buffer, resolution_data);
+
+    ID3D11Buffer* pin_bitmask_constant_buffer;
+    CreateCBuffer(&pin_bitmask_constant_buffer, pin_bitmask_data);
 #pragma endregion
 
     // initialize input layout
@@ -723,7 +729,7 @@ void App::Run()
         DirectX::XMVectorGetW(background_color_data.color)
     };
 
-    int resolution = 2;
+    int resolution = 5;
     Cloth cloth{ resolution, device_ };
     cloth.zero_normals_shader_ = &zero_normal_shader;
     cloth.recalculate_normals_shader_ = &recalculate_normal_shader;
@@ -740,7 +746,7 @@ void App::Run()
 
     int pin_amount = 2;
 
-    int quality_steps = 20;
+    int quality_steps = 30;
 
     POINT prev_mouse_pos = { 0, 0 };
     while (!done)
@@ -853,9 +859,10 @@ void App::Run()
                 context_->CSSetConstantBuffers(0, 1, &delta_time_constant_buffer);
                 context_->CSSetConstantBuffers(1, 1, &compliance_constant_buffer);
                 context_->CSSetConstantBuffers(2, 1, &mass_constant_buffer);
+                context_->CSSetConstantBuffers(3, 1, &pin_bitmask_constant_buffer);
                 context_->CSSetUnorderedAccessViews(0, 1, &cloth.position_uav_, nullptr);
                 context_->CSSetShaderResources(0, 1, &(cloth.pc_srvs_));
-                context_->Dispatch(pin_amount, 1, 1);
+                context_->Dispatch(9, 1, 1);
 
                 BindCShader(streaching_constraints_shader);
                 context_->CSSetConstantBuffers(0, 1, &delta_time_constant_buffer);
@@ -1060,7 +1067,18 @@ void App::Run()
         ImGui::SliderFloat("Flexibility", &bending_compliance_data.alpha, 0.001f, 0.5f);
         ImGui::SliderFloat("Gravity strength", &gravity_data.y, -100.0f, 0.0f);
         ImGui::SliderFloat("Wind strength", &wind_data.strength_mul, 0.0f, 100.0f);
-        ImGui::SliderInt("Pin amount", &pin_amount, 0, 9);
+        
+        for (int i = 0; i < 9; i++) 
+        {
+            std::string text = "Pin " + std::to_string(i + 1);
+            bool val = (pin_bitmask_data.mask >> i) & 1;
+            if (ImGui::Checkbox(text.c_str(), &val))
+            {
+                pin_bitmask_data.mask ^= (1 << i);
+                SetCBuffer(pin_bitmask_constant_buffer, pin_bitmask_data);
+            }
+            if (i % 3 != 2) ImGui::SameLine();
+        }
 
         if (ImGui::Button("Stop simulation"))
         {

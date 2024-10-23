@@ -6,6 +6,7 @@
 #include <vector>
 #include <iostream>
 #include <queue>
+#include <algorithm>
 #include "Shader.h"
 
 class Cloth
