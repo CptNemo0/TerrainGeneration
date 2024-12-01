@@ -20,7 +20,7 @@ YouTube video: https://www.youtube.com/watch?v=psMpRK0Np5k
 Building from source:
 1. Ensure that your windows machine has developer mode enabled.
 2. Install visual studio.
-3. Install C++ for windows desktop app development
+3. Install C++ for windows desktop app development from Visual Studio Installer
 4. Install C++ for games development from Visual Studio Installer
 5. Generate the project using CMake: ```cmake -B build```
 6. Go to ```build``` folder and open .sln file.
