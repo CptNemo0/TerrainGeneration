@@ -22,7 +22,7 @@ Building from source:
 2. Install visual studio.
 3. Install C++ for windows desktop app development
 4. Install C++ for games development from Visual Studio Installer
-5. Generate the project using CMake: ```cmake -B buil```
+5. Generate the project using CMake: ```cmake -B build```
 6. Go to ```build``` folder and open .sln file.
 7. Select correct startup project
 8. Build it using VS.
