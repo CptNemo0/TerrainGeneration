@@ -34,8 +34,8 @@ StructuredBuffer<float3> position_buffer : register(t0);
 PixelInput VSMain(VertexInput input, uint id : SV_VertexID)
 {
     PixelInput output;
-    float4 position = float4(position_buffer[id], 1.0);
-    float4 world_position = mul(model_matrix, position);
+    
+    float4 world_position = mul(model_matrix, input.position);
     float4x4 light_space_matrix = mul(projection_matrix, view_matrix);
     output.projected_position = mul(light_space_matrix, world_position);
     return output;

@@ -18,6 +18,7 @@
 #include "Shader.h"
 #include "ConstantBufferStructs.h"
 #include "Cloth.h"
+#include "TerrainChunk.h"
 
 #ifndef GET_X_LPARAM
 #define GET_X_LPARAM(lp) ((int)(short)LOWORD(lp))

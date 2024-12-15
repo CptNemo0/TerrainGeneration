@@ -553,8 +553,11 @@ void App::Run()
     Shader shadowmap_shader;
     CreateShaders(shadowmap_shader, L"../res/Shaders/ShadowMap.hlsl");
 
+    Shader gbuffer_terrain_shader;
+    CreateShaders(gbuffer_terrain_shader, L"../res/Shaders/TerrainGBuffer.hlsl");
+
     Shader gbuffer_shader;
-    CreateShaders(gbuffer_shader, L"../res/Shaders/GBuffer.hlsl");
+    CreateShaders(gbuffer_shader, L"../res/Shaders/ClothGBuffer.hlsl");
 
     Shader gbuffer_grid_shader;
     CreateShaders(gbuffer_grid_shader, L"../res/Shaders/GridGBuffer.hlsl");
@@ -736,6 +739,18 @@ void App::Run()
     cloth.stride_ = stride;
     cloth.offset_ = offset;
 
+    TerrainChunk terrain1{ 0, 0, 16 };
+    TerrainChunk terrain2{ 1, 0, 16 };
+    TerrainChunk terrain3{ 0, 1, 16 };
+    TerrainChunk terrain4{ 1, 1, 16 };
+
+    std::vector<TerrainChunk> chunks{ terrain1, terrain2, terrain3, terrain4 };
+    
+    for (auto& chunk : chunks)
+    {
+        chunk.BuildChunk();
+    }
+
     // Main loop
     bool done = false;
     bool rotate = false;
@@ -831,6 +846,7 @@ void App::Run()
         dt_data.dt = dt;
 
         dt_data.idt = 1.0f / dt;
+        /*
 #pragma region Logic
         if (run_sim || step_sim)
         {
@@ -949,7 +965,7 @@ void App::Run()
             }
         }
 #pragma endregion
-
+*/
 #pragma region Shadow map
 
         ID3D11RenderTargetView* shadowmap_render_targets[2] = { depth_render_target_view, lightspace_position_render_target_view };
@@ -968,7 +984,7 @@ void App::Run()
         cloth.Draw(context_);
 
 #pragma endregion
-
+        
 #pragma region GBuffer
 
         ID3D11RenderTargetView* gbuffer_render_targets[3] = { position_render_target_view, normal_render_target_view, color_render_target_view };
@@ -996,7 +1012,7 @@ void App::Run()
         context_->DrawIndexed(6, 0, 0);
 
         context_->Flush();
-        BindShaders(gbuffer_shader);
+        BindShaders(gbuffer_terrain_shader);
         context_->PSSetConstantBuffers(0, 1, &color_constant_buffer);
         context_->VSSetConstantBuffers(1, 1, &view_proj_constant_buffer);
         context_->VSSetConstantBuffers(2, 1, &camera_constant_buffer);
@@ -1013,7 +1029,16 @@ void App::Run()
             RenderWireframe();
         }
 
-        cloth.Draw(context_);
+        //cloth.Draw(context_);
+
+        for (auto& chunk : chunks)
+        {
+            context_->IASetVertexBuffers(0, 1, &chunk.vertex_buffer, &stride, &offset);
+            context_->IASetIndexBuffer(chunk.index_buffer, DXGI_FORMAT_R32_UINT, 0);
+            context_->DrawIndexed(3 * chunk.faces.size(), 0, 0);
+        }
+        
+
         RenderSolid();
 
 #pragma endregion

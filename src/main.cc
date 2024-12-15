@@ -1,12 +1,21 @@
-//release 1.0
+//#include "../include/App.h"
 
+#include "../include/Structs.h"
+#include <vector>
+#include<DirectXMath.h>
+#include <iostream>
+#include "../include/TerrainChunk.h"
 #include "../include/App.h"
 
 int main()
 {
-	App app{1600, 900, "Cloth Simulation"};
+	srand(20000809);
+	App app{1600, 900, "Terrain Generation"};
 	app.Init();
 	app.Run();
 	app.End();
+
+	TerrainChunk chunk{ 0.0f, 0.0f, 128 };
+	chunk.BuildChunk();
 	return 0;
 }
