@@ -19,6 +19,7 @@
 #include "ConstantBufferStructs.h"
 #include "Cloth.h"
 #include "TerrainChunk.h"
+#include "FPCamera.h"
 
 #ifndef GET_X_LPARAM
 #define GET_X_LPARAM(lp) ((int)(short)LOWORD(lp))
@@ -31,6 +32,39 @@
 class App
 {
 public:
+
+	const float rectangle_vertices[24]
+	{
+		//position============= | normals=========|
+		-150.0f, -2.5f,  150.0f, 0.0f, 1.0f, 0.0f,
+		 150.0f, -2.5f,  150.0f, 0.0f, 1.0f, 0.0f,
+		 150.0f, -2.5f, -150.0f, 0.0f, 1.0f, 0.0f,
+		-150.0f, -2.5f, -150.0f, 0.0f, 1.0f, 0.0f,
+	};
+
+	const unsigned int rectangle_indices[6]
+	{
+		0, 1, 3,
+		3, 1, 2
+	};
+
+	const float screen_quad_vertices[24]
+	{
+		//position========| normals=========|
+		-1.0f,  1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+		 1.0f,  1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+		 1.0f, -1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+		-1.0f, -1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+	};
+
+	const unsigned int screen_quad_indices[6]
+	{
+		0, 1, 3,
+		3, 1, 2
+	};
+
+	const float white[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+
 	WNDCLASSEX wc_;
 	HWND hwnd_;
 

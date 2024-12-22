@@ -270,7 +270,10 @@ void App::Init()
 
     wc_ = { sizeof(WNDCLASSEX), CS_CLASSDC, WndProc, 0L, 0L, GetModuleHandle(NULL), NULL, NULL, NULL, NULL, window_name_, NULL };
     ::RegisterClassEx(&wc_);
-    hwnd_ = ::CreateWindow(wc_.lpszClassName, _T(window_name_), WS_OVERLAPPEDWINDOW, 100, 100, window_width_, window_height_, NULL, NULL, wc_.hInstance, NULL);
+    
+    MONITORINFO mi = { sizeof(mi) };
+
+    hwnd_ = ::CreateWindow(wc_.lpszClassName, _T(window_name_), WS_POPUP | WS_VISIBLE, 0, 0, 1920, 1080, NULL, NULL, wc_.hInstance, NULL);
 
     // Initialize Direct3D
     if (!CreateDeviceD3D(hwnd_))
@@ -314,40 +317,9 @@ void App::End()
 }
 
 void App::Run()
-{
+{   
+    SetCursorPos(1920.0f * 0.5f, 1080.0f * 0.5f);
     ULONGLONG start_time = GetTickCount64();
-
-    const float rectangle_vertices[]
-    {
-        //position============= | normals=========|
-        -150.0f, -2.5f,  150.0f, 0.0f, 1.0f, 0.0f,
-         150.0f, -2.5f,  150.0f, 0.0f, 1.0f, 0.0f,
-         150.0f, -2.5f, -150.0f, 0.0f, 1.0f, 0.0f,
-        -150.0f, -2.5f, -150.0f, 0.0f, 1.0f, 0.0f,
-    };
-
-    const unsigned int rectangle_indices[]
-    {
-        0, 1, 3,
-        3, 1, 2
-    };
-
-    const float screen_quad_vertices[]
-    {
-        //position========| normals=========|
-        -1.0f,  1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
-         1.0f,  1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
-         1.0f, -1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
-        -1.0f, -1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
-    };
-
-    const unsigned int screen_quad_indices[]
-    {
-        0, 1, 3,
-        3, 1, 2
-    };
-
-    const float white[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
 
     DirectX::XMVECTOR  camera_position_iv = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 1.0f);
     float camera_distance = 3.0f;
@@ -622,7 +594,7 @@ void App::Run()
     spotlight_data.specular_color = DirectX::XMVECTOR({ 1.0f, 1.0f, 1.0f, 1.0f });
     spotlight_data.cut_off = 0.59f;
     spotlight_data.outer_cut_off = 0.52f;
-    spotlight_data.intensity = 50.0f;
+    spotlight_data.intensity = 1.0f;
 
     ViewProjBuffer lightspace_data;
     lightspace_data.view_matrix = DirectX::XMMatrixLookAtLH(spotlight_data.position, DirectX::XMVectorAdd(spotlight_data.position, spotlight_data.direction), up_direction_iv);
@@ -732,19 +704,10 @@ void App::Run()
         DirectX::XMVectorGetW(background_color_data.color)
     };
 
-    int resolution = 5;
-    Cloth cloth{ resolution, device_ };
-    cloth.zero_normals_shader_ = &zero_normal_shader;
-    cloth.recalculate_normals_shader_ = &recalculate_normal_shader;
-    cloth.stride_ = stride;
-    cloth.offset_ = offset;
+    TerrainChunk terrain1{ 10, 10, 64 };
+    
 
-    TerrainChunk terrain1{ 0, 0, 16 };
-    TerrainChunk terrain2{ 1, 0, 16 };
-    TerrainChunk terrain3{ 0, 1, 16 };
-    TerrainChunk terrain4{ 1, 1, 16 };
-
-    std::vector<TerrainChunk> chunks{ terrain1, terrain2, terrain3, terrain4 };
+    std::vector<TerrainChunk> chunks{ terrain1};
     
     for (auto& chunk : chunks)
     {
@@ -756,17 +719,21 @@ void App::Run()
     bool rotate = false;
     bool render_wireframe = false;
 
-    bool run_sim = false;
-    bool step_sim = false;
-
-    int pin_amount = 2;
-
-    int quality_steps = 30;
+    FPCamera camera{};
 
     POINT prev_mouse_pos = { 0, 0 };
     while (!done)
     {
+        ULONGLONG current_time = GetTickCount64();
+        float t = (current_time - start_time) * 0.001f;
+        float dt = ImGui::GetIO().DeltaTime;
+        grid_data.time = t;
+        time_data.time = t;
 
+        dt_data.t = t;
+        dt_data.dt = dt;
+
+        dt_data.idt = 1.0f / dt;
 #pragma region Input handling
 
         MSG msg;
@@ -774,58 +741,88 @@ void App::Run()
         {
             ::TranslateMessage(&msg);
             ::DispatchMessage(&msg);
-            if (msg.message == WM_QUIT)
-            {
-                cloth.CleanUp();
-                done = true;
-            }
-                
-            else if (msg.message == WM_MBUTTONDOWN)
-            {
-                rotate = true;
-            }
-            else if (msg.message == WM_MBUTTONUP)
-            {
-                rotate = false;
-            }
-            else if (msg.message == WM_MOUSEWHEEL)
-            {
-                float scroll_amount = GET_WHEEL_DELTA_WPARAM(msg.wParam) * 0.002f;
-                camera_distance -= scroll_amount;
 
-                camera_distance = fmaxf(camera_distance, 0.5f);
-
-                float x = DirectX::XMScalarCos(DirectX::XMVectorGetByIndex(camera_angles, 0)) * DirectX::XMScalarCos(DirectX::XMVectorGetByIndex(camera_angles, 1));
-                float y = DirectX::XMScalarSin(DirectX::XMVectorGetByIndex(camera_angles, 1));
-                float z = -1.0 * DirectX::XMScalarSin(DirectX::XMVectorGetByIndex(camera_angles, 0)) * DirectX::XMScalarCos(DirectX::XMVectorGetByIndex(camera_angles, 1));
-                camera_position_iv = DirectX::XMVectorSet(camera_distance * x, camera_distance * y, camera_distance * z, 1.0f);
-                view_proj_data.view_matrix = DirectX::XMMatrixLookAtLH(camera_position_iv, center_position_iv, up_direction_iv);
-            }
-            else if (msg.message == WM_MOUSEMOVE)
+            switch (msg.message)
             {
-                int mouseX = GET_X_LPARAM(msg.lParam);
-                int mouseY = GET_Y_LPARAM(msg.lParam);
-
-                float deltaX = (mouseX - prev_mouse_pos.x) * 0.01f;
-                float deltaY = (mouseY - prev_mouse_pos.y) * 0.01f;
-
-                prev_mouse_pos.x = mouseX;
-                prev_mouse_pos.y = mouseY;
-
-                if (rotate)
+                case WM_QUIT:
                 {
-                    float a = DirectX::XMVectorGetByIndex(camera_angles, 0) + deltaX;
-                    float b = fmaxf(fminf(DirectX::XMVectorGetByIndex(camera_angles, 1) + deltaY, 1.57f), -1.57f);
+                    done = true;
+                    break;
+                }
 
-                    camera_angles = DirectX::XMVectorSetByIndex(camera_angles, a, 0);
-                    camera_angles = DirectX::XMVectorSetByIndex(camera_angles, b, 1);
+                case WM_KEYDOWN:
+                {
+                    switch (msg.wParam)
+                    {
+                        case 0x57:
+                        {
+                            camera.forward_s = 1.0f;
+                            break;
+                        }
 
-                    float x = DirectX::XMScalarCos(a) * DirectX::XMScalarCos(b);
-                    float y = DirectX::XMScalarSin(b);
-                    float z = -1.0 * DirectX::XMScalarSin(a) * DirectX::XMScalarCos(b);
-                    camera_position_iv = DirectX::XMVectorSet(camera_distance * x, camera_distance * y, camera_distance * z, 1.0f);
-                    camera_data.camera_position = camera_position_iv;
-                    view_proj_data.view_matrix = DirectX::XMMatrixLookAtLH(camera_position_iv, center_position_iv, up_direction_iv);
+                        case 0x53:
+                        {
+                            camera.forward_s = -1.0f;
+                            break;
+                        }
+
+                        case 0x41:
+                        {
+                            camera.right_s = -1.0f;
+                            break;
+                        }
+
+                        case 0x44:
+                        {
+                            camera.right_s = 1.0f;
+                            break;
+                        }
+
+                    }
+                    break;
+                }
+
+                case WM_KEYUP:
+                {
+                    switch (msg.wParam)
+                    {
+                    case 0x57:
+                    {
+                        camera.forward_s = 0.0f;
+                        break;
+                    }
+
+                    case 0x53:
+                    {
+                        camera.forward_s = 0.0f;
+                        break;
+                    }
+
+                    case 0x41:
+                    {
+                        camera.right_s = 0.0f;
+                        break;
+                    }
+
+                    case 0x44:
+                    {
+                        camera.right_s = 0.0f;
+                        break;
+                    }
+
+                    }
+                    break;
+                }
+
+                
+
+                case WM_MOUSEMOVE:
+                {
+                    camera.UpdateTargetPosition(GET_X_LPARAM(msg.lParam) - 960, GET_Y_LPARAM(msg.lParam) - 540);
+                    camera_data.camera_position = camera.position;
+                    view_proj_data.view_matrix = camera.GetViewMatrix();
+                    SetCursorPos(960.0f, 540.0f);
+                    break;
                 }
             }
         }
@@ -834,138 +831,11 @@ void App::Run()
             break;
         }
 
+        camera.MoveCamera(dt);
 #pragma endregion
 
-        ULONGLONG current_time = GetTickCount64();
-        float t = (current_time - start_time) * 0.001f;
-        float dt = 10.0f * fmin(ImGui::GetIO().DeltaTime, 1.0f / 60.0f) / (quality_steps);
-        grid_data.time = t;
-        time_data.time = t;
-
-        dt_data.t = t;
-        dt_data.dt = dt;
-
-        dt_data.idt = 1.0f / dt;
-        /*
-#pragma region Logic
-        if (run_sim || step_sim)
-        {
-            SetCBuffer(delta_time_constant_buffer, dt_data);
-            SetCBuffer(gravity_constant_buffer, gravity_data);
-            SetCBuffer(mass_constant_buffer, mass_data);
-            SetCBuffer(wind_constant_buffer, wind_data);
-            for (int it = 0; it < quality_steps; it++)
-            {
-                BindCShader(update_position_shader);
-                context_->CSSetConstantBuffers(0, 1, &delta_time_constant_buffer);
-                context_->CSSetConstantBuffers(1, 1, &gravity_constant_buffer);
-                context_->CSSetConstantBuffers(2, 1, &mass_constant_buffer);
-                context_->CSSetConstantBuffers(3, 1, &wind_constant_buffer);
-                context_->CSSetConstantBuffers(4, 1, &resolutiom_constant_buffer);
-                context_->CSSetUnorderedAccessViews(0, 1, &cloth.position_uav_, nullptr);
-                context_->CSSetUnorderedAccessViews(1, 1, &cloth.previous_positions_uav_, nullptr);
-                context_->CSSetUnorderedAccessViews(2, 1, &cloth.velocity_uav_, nullptr);
-                context_->CSSetUnorderedAccessViews(3, 1, &cloth.jacobi_uav_, nullptr);
-                resolution_data.resolution = cloth.resolution_;
-                resolution_data.z_multiplier = cloth.resolution_ * cloth.resolution_ / 4;
-                SetCBuffer(resolutiom_constant_buffer, resolution_data);
-                context_->Dispatch(cloth.resolution_multiplier_, cloth.resolution_multiplier_, 4);
-
-                BindCShader(enforce_pin_shader);
-                context_->CSSetConstantBuffers(0, 1, &delta_time_constant_buffer);
-                context_->CSSetConstantBuffers(1, 1, &compliance_constant_buffer);
-                context_->CSSetConstantBuffers(2, 1, &mass_constant_buffer);
-                context_->CSSetConstantBuffers(3, 1, &pin_bitmask_constant_buffer);
-                context_->CSSetUnorderedAccessViews(0, 1, &cloth.position_uav_, nullptr);
-                context_->CSSetShaderResources(0, 1, &(cloth.pc_srvs_));
-                context_->Dispatch(9, 1, 1);
-
-                BindCShader(streaching_constraints_shader);
-                context_->CSSetConstantBuffers(0, 1, &delta_time_constant_buffer);
-                context_->CSSetConstantBuffers(1, 1, &compliance_constant_buffer);
-                context_->CSSetConstantBuffers(2, 1, &mass_constant_buffer);
-                context_->CSSetConstantBuffers(3, 1, &resolutiom_constant_buffer);
-
-                context_->CSSetUnorderedAccessViews(0, 1, &cloth.position_uav_, nullptr);
-                context_->CSSetUnorderedAccessViews(1, 1, &cloth.jacobi_uav_, nullptr);
-                for (int i = 0; i < 4; i++)
-                {
-                    int g = static_cast<int>(cloth.structural_constraints_[i].size());
-                    int ydim = 4;
-                    int zdim = 4;
-                    float xdim_f = static_cast<float>(g) / static_cast<float>(ydim * zdim * 128);
-                    float xdim = static_cast<int>(ceil(xdim_f));
-                    int z_mul = static_cast<int>(xdim_f * ydim * 128);
-                    int resolution = xdim * 32;
-                    resolution_data.resolution = resolution;
-                    resolution_data.z_multiplier = z_mul;
-                    SetCBuffer(resolutiom_constant_buffer, resolution_data);
-                    context_->CSSetShaderResources(0, 1, &(cloth.sc_srvs_[i]));
-                    context_->Dispatch(xdim, 4, 4);
-                }
-
-                BindCShader(streaching_constraints_jacobi_shader);
-                context_->CSSetConstantBuffers(3, 1, &resolutiom_constant_buffer);
-
-                for (int i = 4; i < 8; i++)
-                {
-                    int g = static_cast<int>(cloth.structural_constraints_[i].size());
-                    int ydim = 4;
-                    int zdim = 4;
-                    float xdim_f = static_cast<float>(g) / static_cast<float>(ydim * zdim * 128);
-                    float xdim = static_cast<int>(ceil(xdim_f));
-                    int z_mul = static_cast<int>(xdim_f * ydim * 128);
-                    int resolution = xdim * 32;
-                    resolution_data.resolution = resolution;
-                    resolution_data.z_multiplier = z_mul;
-                    SetCBuffer(resolutiom_constant_buffer, resolution_data);
-                    context_->CSSetShaderResources(0, 1, &(cloth.sc_srvs_[i]));
-                    context_->Dispatch(xdim, ydim, zdim);
-                }
-
-
-                SetCBuffer(compliance_constant_buffer, bending_compliance_data);
-
-                for (int i = 0; i < 4; i++)
-                {
-                    int g = static_cast<int>(cloth.structural_constraints_[i].size());
-                    int ydim = 4;
-                    int zdim = 4;
-                    float xdim_f = static_cast<float>(g) / static_cast<float>(ydim * zdim * 128);
-                    float xdim = static_cast<int>(ceil(xdim_f));
-                    int z_mul = static_cast<int>(xdim_f * ydim * 128);
-                    int resolution = xdim * 32;
-                    resolution_data.resolution = resolution;
-                    resolution_data.z_multiplier = z_mul;
-                    SetCBuffer(resolutiom_constant_buffer, resolution_data);
-                    context_->CSSetShaderResources(0, 1, &(cloth.bending_srvs_[i]));
-                    context_->Dispatch(xdim, ydim, zdim);
-                }
-
-                BindCShader(update_velocity_shader);
-                context_->CSSetConstantBuffers(0, 1, &delta_time_constant_buffer);
-                context_->CSSetConstantBuffers(1, 1, &gravity_constant_buffer);
-                context_->CSSetConstantBuffers(2, 1, &mass_constant_buffer);
-                context_->CSSetConstantBuffers(3, 1, &resolutiom_constant_buffer);
-                context_->CSSetUnorderedAccessViews(0, 1, &cloth.position_uav_, nullptr);
-                context_->CSSetUnorderedAccessViews(1, 1, &cloth.previous_positions_uav_, nullptr);
-                context_->CSSetUnorderedAccessViews(2, 1, &cloth.velocity_uav_, nullptr);
-                context_->CSSetUnorderedAccessViews(3, 1, &cloth.jacobi_uav_, nullptr);
-                resolution_data.resolution = cloth.resolution_;
-                resolution_data.z_multiplier = cloth.resolution_ * cloth.resolution_ / 4;
-                SetCBuffer(resolutiom_constant_buffer, resolution_data);
-                context_->Dispatch(cloth.resolution_multiplier_, cloth.resolution_multiplier_, 4);
-
-            }
-
-            cloth.TangentUpdate(context_);
-            if (step_sim)
-            {
-                step_sim = false;
-            }
-        }
-#pragma endregion
-*/
+        
+       
 #pragma region Shadow map
 
         ID3D11RenderTargetView* shadowmap_render_targets[2] = { depth_render_target_view, lightspace_position_render_target_view };
@@ -980,8 +850,8 @@ void App::Run()
         context_->VSSetConstantBuffers(1, 1, &model_matrix_constant_buffer);
         SetCBuffer(view_proj_constant_buffer, lightspace_data);
         SetCBuffer(model_matrix_constant_buffer, model_matrix_data);
-        context_->VSSetShaderResources(0, 1, &cloth.position_srv_);
-        cloth.Draw(context_);
+        
+        
 
 #pragma endregion
         
@@ -1017,19 +887,16 @@ void App::Run()
         context_->VSSetConstantBuffers(1, 1, &view_proj_constant_buffer);
         context_->VSSetConstantBuffers(2, 1, &camera_constant_buffer);
         context_->VSSetConstantBuffers(3, 1, &model_matrix_constant_buffer);
-        context_->VSSetShaderResources(0, 1, &cloth.position_srv_);
-        context_->VSSetShaderResources(1, 1, &cloth.normal_srv_);
         SetCBuffer(color_constant_buffer, color_data);
         SetCBuffer(view_proj_constant_buffer, view_proj_data);
         SetCBuffer(camera_constant_buffer, camera_data);
         SetCBuffer(model_matrix_constant_buffer, model_matrix_data);
 
+        RenderSolid();
         if (render_wireframe)
         {
             RenderWireframe();
         }
-
-        //cloth.Draw(context_);
 
         for (auto& chunk : chunks)
         {
@@ -1038,9 +905,6 @@ void App::Run()
             context_->DrawIndexed(3 * chunk.faces.size(), 0, 0);
         }
         
-
-        RenderSolid();
-
 #pragma endregion
 
 #pragma region Light
@@ -1078,55 +942,7 @@ void App::Run()
 
         ImGui::Begin("Menu");
 
-        ImGui::SliderInt("Resolution", &resolution, 1, 10);
-        if (ImGui::Button("Apply new resolution"))
-        {
-            cloth.CleanUp();
-            cloth.Init(resolution, device_);
-        }
-
         ImGui::Checkbox("Render wireframe", &render_wireframe);
-
-        ImGui::SliderInt("Quality steps", &quality_steps, 5, 80);
-        ImGui::SliderFloat("Structure elasticity", &structural_compliance_data.alpha, 0.000025f, 0.5f, "%.4f");
-        ImGui::SliderFloat("Flexibility", &bending_compliance_data.alpha, 0.001f, 0.5f);
-        ImGui::SliderFloat("Gravity strength", &gravity_data.y, -100.0f, 0.0f);
-        ImGui::SliderFloat("Wind strength", &wind_data.strength_mul, 0.0f, 100.0f);
-        
-        for (int i = 0; i < 9; i++) 
-        {
-            std::string text = "Pin " + std::to_string(i + 1);
-            bool val = (pin_bitmask_data.mask >> i) & 1;
-            if (ImGui::Checkbox(text.c_str(), &val))
-            {
-                pin_bitmask_data.mask ^= (1 << i);
-                SetCBuffer(pin_bitmask_constant_buffer, pin_bitmask_data);
-            }
-            if (i % 3 != 2) ImGui::SameLine();
-        }
-
-        if (ImGui::Button("Stop simulation"))
-        {
-            run_sim = false;
-        }
-
-        if (ImGui::Button("Run simulation"))
-        {
-            run_sim = true;
-        }
-
-        if (ImGui::Button("Step through simulation"))
-        {
-            if (run_sim)
-            {
-                run_sim = false;
-            }
-
-            step_sim = true;
-        }
-
-        ImGui::SliderFloat("Offset", &grid_data.offset, 0.1f, 5.0f);
-        ImGui::SliderFloat("Width", &grid_data.width, 0.001f, 0.2f);
 
         float fps = ImGui::GetIO().Framerate;
 

@@ -5,7 +5,7 @@ TerrainChunk::TerrainChunk(float x, float z, int resolution)
 {
 	this->position = DirectX::XMVectorSet(x, 0.0f, z, 0.0f);
 	this->resolution = resolution;
-	this->dp = 1.0f / resolution;
+	this->dp = 10.0f / resolution;
 }
 
 void TerrainChunk::CreateVertices()
@@ -14,10 +14,10 @@ void TerrainChunk::CreateVertices()
     {
         for (int j = 0; j < resolution; j++)
         {
-            float x = DirectX::XMVectorGetX(position) + dp * i;
-            float z = DirectX::XMVectorGetZ(position) + dp * j;
-            float y = perlin2d(x, z, 1.0f, 2);
-            y = powf(3, y);
+            float x = -2.5f + DirectX::XMVectorGetX(position) + dp * i;
+            float z = -2.5f + DirectX::XMVectorGetZ(position) + dp * j;
+            float y = perlin2d(x, z, 0.1f, 2);
+            y = powf(y * 2.0f, 2);
             vertices.emplace_back(x, y, z, 0.0f, 0.0f, 0.0f);
         }
     }
@@ -90,6 +90,7 @@ void TerrainChunk::CreateNormals()
 
 void TerrainChunk::CreateBuffers()
 {
+    if (!App::device_) return;
     buffer_description.ByteWidth = sizeof(Vertex) * vertices.size();
     buffer_description.BindFlags = D3D11_BIND_VERTEX_BUFFER;
     buffer_description.StructureByteStride = sizeof(float) * 6;

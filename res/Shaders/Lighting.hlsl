@@ -107,37 +107,14 @@ float4 PSMain(PixelInput input) : SV_Target
     
     float theta = dot(light_direction, normalize(-sl_direction));
     
-    if (theta > sl_cut_off)
-    {
-        float4 view_direction = normalize(camera_position - world_position);
-        float4 halfway_direction = normalize(light_direction + view_direction);
+    float4 view_direction = normalize(camera_position - world_position);
+    float4 halfway_direction = normalize(light_direction + view_direction);
     
-        diffuse = max(dot(light_direction, normal), 0.0);
-        spec = pow(max(dot(view_direction, halfway_direction), 0.0), shinieness);
+    diffuse = max(dot(light_direction, normal), 0.0);
+    spec = pow(max(dot(view_direction, halfway_direction), 0.0), shinieness);
         
-        float epsilon = sl_cut_off - sl_outer_cut_off;
-        float sl_intensity = clamp((theta - sl_outer_cut_off) / epsilon, 0.0, 1.0);
-        
-        diffuse *= sl_intensity;
 
-    }
     
-    float4x4 light_space_matrix = mul(projection_matrix, view_matrix);
-    float4 lightspace_position = mul(light_space_matrix, world_position);
-    
-    float4 p = (lightspace_position + 1.0) * 0.5;
-    p.y = 1.0 - p.y;
-    float4 shadow_uv = p;
-
-    float shadow_depth = shadow_texture.Sample(texture_sampler, shadow_uv.xy).r;
-
-    float visibility = 1.0;
-    float bias = 0.005;
-    if (shadow_uv.z - 0.469 > shadow_depth)
-    {
-        visibility = 0.2;
-    }
-    
-    float4 after_light = (ambient_light + (diffuse * sl_diffuse_color + spec * sl_specular_color) * attenuation * intensity) * color * visibility;
+    float4 after_light = (ambient_light + (diffuse * sl_diffuse_color + spec * sl_specular_color) * intensity) * color;
     return after_light;
 }
