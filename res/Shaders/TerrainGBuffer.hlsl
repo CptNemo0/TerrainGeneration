@@ -71,11 +71,14 @@ PixelInput VSMain(VertexInput input)
     return output;
 }
 
+
+
 PixelOutput PSMain(PixelInput input)
 {
     PixelOutput output;
     output.color = float4(color.rgb, 1.0);
     output.position = input.world_position;
+
     output.normal = input.normal * 0.5 + 0.5;
     return output;
 }

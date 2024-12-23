@@ -3,6 +3,9 @@
 
 #include <iostream>
 #include <string>
+#include <unordered_map>
+#include <thread>
+#include <mutex>
 
 #include <d3d11.h>
 #include <DirectXMath.h>
@@ -20,7 +23,7 @@
 #include "Cloth.h"
 #include "TerrainChunk.h"
 #include "FPCamera.h"
-
+#include "QuadTree.h"
 #ifndef GET_X_LPARAM
 #define GET_X_LPARAM(lp) ((int)(short)LOWORD(lp))
 #endif
@@ -90,6 +93,8 @@ public:
 	int window_height_;
 	LPCSTR window_name_;
 
+		
+
 	App(int width, int height, LPCSTR name);
 
 	static void CreateRenderTarget();
@@ -119,6 +124,8 @@ public:
 	void Run();
 
 	void End();
+
+	//void CreateLand(QuadTreeNode* node, std::unordered_map<QuadTreeNode, TerrainChunk, QuadTreeNodeHash, QuadTreeNodeEqual>* map, std::vector<TerrainChunk>* chunks);
 
 	template<typename T>
 	void SetCBuffer(ID3D11Buffer* buffer, T& data);

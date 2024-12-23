@@ -16,14 +16,22 @@ public:
 	std::vector<Face> faces;
 	DirectX::XMVECTOR position;// { 0.0f, 0.0f, 0.0f, 0.0f };
 	int resolution;
+	
+	float x;
+	float z;
+	float size;
 	float dp;
 
-	ID3D11Buffer* vertex_buffer;
-	ID3D11Buffer* index_buffer;
+	ID3D11Buffer* vertex_buffer = nullptr;
+	ID3D11Buffer* index_buffer = nullptr;
 	D3D11_BUFFER_DESC buffer_description = { 0 };
 	D3D11_BUFFER_DESC index_buffer_description = { 0 };
 	
-	TerrainChunk(float x, float z, int resolution);
+	TerrainChunk(float x, float z, float size, int resolution);
+	
+
+
+	TerrainChunk();
 
 	void CreateVertices();
 

@@ -15,7 +15,5 @@ int main()
 	app.Run();
 	app.End();
 
-	TerrainChunk chunk{ 0.0f, 0.0f, 128 };
-	chunk.BuildChunk();
 	return 0;
 }

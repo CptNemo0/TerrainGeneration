@@ -1,27 +1,48 @@
 #include "../include/TerrainChunk.h"
 #include "../include/App.h"
 
-TerrainChunk::TerrainChunk(float x, float z, int resolution)
+TerrainChunk::TerrainChunk(float x, float z, float size, int resolution)
 {
+    this->x = x;
+    this->z = z;
+    this->size = size;
 	this->position = DirectX::XMVectorSet(x, 0.0f, z, 0.0f);
-	this->resolution = resolution;
-	this->dp = 10.0f / resolution;
+	this->resolution = resolution; 
+    this->dp = size / resolution;
+    this->resolution+=1;
+}
+
+TerrainChunk::TerrainChunk()
+{
+    this->x = 0;
+    this->z = 0;
+    this->size = (10);
+    this->resolution = (16 );
+    this->dp = (size) / resolution;
+    resolution += 1;
 }
 
 void TerrainChunk::CreateVertices()
 {
+    
+    float half_size = size * 0.5f;
+    float start_x = x - half_size;
+    float start_z = z - half_size;
+    vertices.resize(resolution * resolution);
+
+    SimplexNoise noise{};
     for (int i = 0; i < resolution; i++)
     {
         for (int j = 0; j < resolution; j++)
         {
-            float x = -2.5f + DirectX::XMVectorGetX(position) + dp * i;
-            float z = -2.5f + DirectX::XMVectorGetZ(position) + dp * j;
-            float y = perlin2d(x, z, 0.1f, 2);
-            y = powf(y * 2.0f, 2);
-            vertices.emplace_back(x, y, z, 0.0f, 0.0f, 0.0f);
+            int idx = i * resolution + j;
+            float local_x = start_x + dp * i;
+            float local_z = start_z + dp * j;
+            float local_y = noise.signedFBM(local_x, local_z, 5, 1.5f, 10.0f, 0.0001);
+            local_y *= 100.0f;
+            vertices[idx] = { local_x, local_y, local_z, 0.0f, 0.0f, 0.0f };
         }
     }
-
 }
 
 void TerrainChunk::CreateFaces()
@@ -90,16 +111,20 @@ void TerrainChunk::CreateNormals()
 
 void TerrainChunk::CreateBuffers()
 {
-    if (!App::device_) return;
+    if (!App::device_ ) return;
+    if (!vertices.size()) return;
+    if (!faces.size()) return;
     buffer_description.ByteWidth = sizeof(Vertex) * vertices.size();
     buffer_description.BindFlags = D3D11_BIND_VERTEX_BUFFER;
     buffer_description.StructureByteStride = sizeof(float) * 6;
     D3D11_SUBRESOURCE_DATA screen_quad_vertex_srd = { &(vertices[0]), 0, 0 };
-    App::device_->CreateBuffer(&buffer_description, &screen_quad_vertex_srd, &vertex_buffer);
+    
 
     index_buffer_description.ByteWidth = sizeof(Face) * faces.size();
     index_buffer_description.BindFlags = D3D11_BIND_INDEX_BUFFER;
     D3D11_SUBRESOURCE_DATA screen_quad_index_srd = { &(faces[0]), 0, 0 };
+
+    App::device_->CreateBuffer(&buffer_description, &screen_quad_vertex_srd, &vertex_buffer);
     App::device_->CreateBuffer(&index_buffer_description, &screen_quad_index_srd, &index_buffer);
 }
 

@@ -86,24 +86,23 @@ PixelOutput PSMain(PixelInput input)
     float wpx = input.world_position.x + sin(input.world_position.z + time * 0.5 * 0.241378);
     float wpz = input.world_position.z + sin(input.world_position.x + time * 0.5 * 0.345786);
     
-    if (fmod(abs(wpx) + 0.5 * width, 2.0 * offset) <= 0.25 * sin(sqrt(abs(width * time))) + 0.5
-    || fmod(abs(wpz) + 0.5 * width, 2.0 * offset) <= 0.25 * sin(sqrt(abs(width * time))) + 0.5
-    || fmod(abs(wpx) + 0.125 * width, offset) <= 0.25 * sin(sqrt(abs(width * time))) + 0.5
-    || fmod(abs(wpz) + 0.125 * width, offset) <= 0.25 * sin(sqrt(abs(width * time))) + 0.5
-    )
+    if (fmod(abs(input.world_position.x) + 0.1 * 0.1, offset) <= 0.1
+    || fmod(abs(input.world_position.z) + 0.1 * 0.1, offset) <= 0.1)
     {
-        const_color = float4(0.5, 0.5, 0.6, 1.0);
+        const_color = float4(0.1, 0.1, 0.2, 1.0);
     }
     
-    float dist = length(input.world_position.xz);
-
-    float radius = 50.0;
-    float softness = 25.0;
-    float vignette = smoothstep(radius, radius - softness, dist);
-
-    float t = (1.0 - vignette);
     
-    const_color = lerp(const_color, bgcolor, t);
+    
+    //float dist = length(input.world_position.xz);
+    //
+    //float radius = 50.0;
+    //float softness = 25.0;
+    //float vignette = smoothstep(radius, radius - softness, dist);
+    //
+    //float t = (1.0 - vignette);
+    //
+    //const_color = lerp(const_color, bgcolor, t);
     
     PixelOutput output;
     output.color = const_color;

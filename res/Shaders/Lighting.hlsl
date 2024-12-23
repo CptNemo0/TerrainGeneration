@@ -99,13 +99,12 @@ float4 PSMain(PixelInput input) : SV_Target
     
     float4 pos_m_light = light_position - world_position;
     float distance2light = length(pos_m_light);
-    float4 light_direction = normalize(pos_m_light);
+    float4 light_direction = float4(1.0f, 1.0f, 1.0f, 0.0f);
     float attenuation = 1.0 / (distance2light * distance2light);
     
     float diffuse = 0.0;
     float spec = 0.0;
-    
-    float theta = dot(light_direction, normalize(-sl_direction));
+  
     
     float4 view_direction = normalize(camera_position - world_position);
     float4 halfway_direction = normalize(light_direction + view_direction);

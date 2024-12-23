@@ -4,6 +4,8 @@ ID3D11Device* App::device_ = nullptr;
 ID3D11DeviceContext* App::context_ = nullptr;
 IDXGISwapChain* App::swap_chain_ = nullptr;
 ID3D11RenderTargetView* App::main_render_target_view_ = nullptr;
+std::mutex mtx;
+std::mutex dc_mtx;
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
@@ -317,7 +319,8 @@ void App::End()
 }
 
 void App::Run()
-{   
+{
+    ShowCursor(FALSE);
     SetCursorPos(1920.0f * 0.5f, 1080.0f * 0.5f);
     ULONGLONG start_time = GetTickCount64();
 
@@ -328,7 +331,7 @@ void App::Run()
     DirectX::XMVECTOR  up_direction_iv = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 
     auto view_matrix = DirectX::XMMatrixLookAtLH(camera_position_iv, center_position_iv, up_direction_iv);
-    auto projection_matrix = DirectX::XMMatrixPerspectiveFovLH(0.7864f, 16.0f / 9.0f, 0.1f, 1000.0f);
+    auto projection_matrix = DirectX::XMMatrixPerspectiveFovLH(0.7864f, 16.0f / 9.0f, 0.1f, 100000.0f);
 
 #pragma region Buffers
     ID3D11UnorderedAccessView* cleaner_uav = nullptr;
@@ -589,16 +592,16 @@ void App::Run()
 
     SpotlightBuffer spotlight_data;
     spotlight_data.position = DirectX::XMVECTOR({ 5.0f,5.0f, 5.0f, 1.0f });
-    spotlight_data.direction = DirectX::XMVector4Normalize({ -3.0f, -5.0f, -3.0f, 1.0f });
+    spotlight_data.direction = DirectX::XMVector4Normalize({ -0.0f, -1.0f, -0.0f, 1.0f });
     spotlight_data.diffuse_color = DirectX::XMVECTOR({ 1.0f, 1.0f, 1.0f, 1.0f });
     spotlight_data.specular_color = DirectX::XMVECTOR({ 1.0f, 1.0f, 1.0f, 1.0f });
     spotlight_data.cut_off = 0.59f;
     spotlight_data.outer_cut_off = 0.52f;
-    spotlight_data.intensity = 1.0f;
+    spotlight_data.intensity = 0.5f;
 
     ViewProjBuffer lightspace_data;
     lightspace_data.view_matrix = DirectX::XMMatrixLookAtLH(spotlight_data.position, DirectX::XMVectorAdd(spotlight_data.position, spotlight_data.direction), up_direction_iv);
-    lightspace_data.projection_matrix = DirectX::XMMatrixOrthographicOffCenterLH(-8.0f, 8.0f, -4.5f, 4.5f, 0.1f, 100.0f);
+    lightspace_data.projection_matrix = DirectX::XMMatrixOrthographicOffCenterLH(-8.0f, 8.0f, -4.5f, 4.5f, 0.1f, 5000.0f);
 
     TimeBuffer time_data;
     time_data.time = 0.0;
@@ -704,15 +707,6 @@ void App::Run()
         DirectX::XMVectorGetW(background_color_data.color)
     };
 
-    TerrainChunk terrain1{ 10, 10, 64 };
-    
-
-    std::vector<TerrainChunk> chunks{ terrain1};
-    
-    for (auto& chunk : chunks)
-    {
-        chunk.BuildChunk();
-    }
 
     // Main loop
     bool done = false;
@@ -720,8 +714,15 @@ void App::Run()
     bool render_wireframe = false;
 
     FPCamera camera{};
+    camera.position = DirectX::XMVectorSet(2500.0f, 50.0f, 2500.0f, 0.0f);
 
+    std::unordered_map<std::size_t, TerrainChunk> built_terrain;
+    std::vector<TerrainChunk> chunks;
+    QuadTreeNodePtrHash hasher;
+    QuadTree quad_tree{ 4 * 4096, DirectX::XMVectorGetX(camera.position), DirectX::XMVectorGetZ(camera.position), 256 };
     POINT prev_mouse_pos = { 0, 0 };
+    int quad_tree_ctr = 0;
+
     while (!done)
     {
         ULONGLONG current_time = GetTickCount64();
@@ -734,6 +735,37 @@ void App::Run()
         dt_data.dt = dt;
 
         dt_data.idt = 1.0f / dt;
+
+        quad_tree_ctr++;
+        if (quad_tree_ctr % static_cast<int>(dt_data.idt / 4) == 0)
+        {
+            
+            quad_tree.CleanTree();
+            quad_tree.BuildTree(DirectX::XMVectorGetX(camera.position), DirectX::XMVectorGetZ(camera.position),
+                                DirectX::XMVectorGetX(camera.forward), DirectX::XMVectorGetZ(camera.forward));
+            chunks.clear();
+
+            for (auto& node : quad_tree.leaves)
+            {
+                auto hash = hasher(node);
+                if (built_terrain.contains(hash))
+                {
+                    chunks.push_back(built_terrain[hash]);
+                }
+                else
+                {
+                    built_terrain[hash] = { static_cast<float>(node->x),
+                                        static_cast<float>(node->y),
+                                        static_cast<float>(node->size),
+                                        20 };
+                    built_terrain[hash].BuildChunk();
+                    chunks.push_back(built_terrain[hash]);
+                    std::cout << "Created: " << node->to_string() << std::endl;
+                }
+            }
+        }
+            
+        
 #pragma region Input handling
 
         MSG msg;
@@ -747,6 +779,15 @@ void App::Run()
                 case WM_QUIT:
                 {
                     done = true;
+                    break;
+                }
+
+                case WM_MOUSEMOVE:
+                {
+                    camera.UpdateTargetPosition(GET_X_LPARAM(msg.lParam) - 960, GET_Y_LPARAM(msg.lParam) - 540);
+                    camera_data.camera_position = camera.position;
+                    view_proj_data.view_matrix = camera.GetViewMatrix();
+                    SetCursorPos(960.0f, 540.0f);
                     break;
                 }
 
@@ -778,6 +819,18 @@ void App::Run()
                             break;
                         }
 
+                        case 0x46:
+                        {
+                            camera.fly = !camera.fly;
+                            break;
+                        }
+
+                        case 0x51:
+                        {
+                            render_wireframe = true;
+                            break;
+                        }
+
                     }
                     break;
                 }
@@ -786,42 +839,37 @@ void App::Run()
                 {
                     switch (msg.wParam)
                     {
-                    case 0x57:
-                    {
-                        camera.forward_s = 0.0f;
-                        break;
+                        case 0x57:
+                        {
+                            camera.forward_s = 0.0f;
+                            break;
+                        }
+
+                        case 0x53:
+                        {
+                            camera.forward_s = 0.0f;
+                            break;
+                        }
+
+                        case 0x41:
+                        {
+                            camera.right_s = 0.0f;
+                            break;
+                        }
+
+                        case 0x44:
+                        {
+                            camera.right_s = 0.0f;
+                            break;
+                        }
+
+                        case 0x51:
+                        {
+                            render_wireframe = false;
+                            break;
+                        }
+
                     }
-
-                    case 0x53:
-                    {
-                        camera.forward_s = 0.0f;
-                        break;
-                    }
-
-                    case 0x41:
-                    {
-                        camera.right_s = 0.0f;
-                        break;
-                    }
-
-                    case 0x44:
-                    {
-                        camera.right_s = 0.0f;
-                        break;
-                    }
-
-                    }
-                    break;
-                }
-
-                
-
-                case WM_MOUSEMOVE:
-                {
-                    camera.UpdateTargetPosition(GET_X_LPARAM(msg.lParam) - 960, GET_Y_LPARAM(msg.lParam) - 540);
-                    camera_data.camera_position = camera.position;
-                    view_proj_data.view_matrix = camera.GetViewMatrix();
-                    SetCursorPos(960.0f, 540.0f);
                     break;
                 }
             }
@@ -838,25 +886,26 @@ void App::Run()
        
 #pragma region Shadow map
 
-        ID3D11RenderTargetView* shadowmap_render_targets[2] = { depth_render_target_view, lightspace_position_render_target_view };
-        context_->ClearRenderTargetView(depth_render_target_view, white);
-        context_->ClearRenderTargetView(lightspace_position_render_target_view, white);
-        context_->OMSetRenderTargets(2, shadowmap_render_targets, depth_stencil_view_);
-        context_->ClearDepthStencilView(depth_stencil_view_, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0.0f);
-
-        BindShaders(shadowmap_shader);
-
-        context_->VSSetConstantBuffers(0, 1, &view_proj_constant_buffer);
-        context_->VSSetConstantBuffers(1, 1, &model_matrix_constant_buffer);
-        SetCBuffer(view_proj_constant_buffer, lightspace_data);
-        SetCBuffer(model_matrix_constant_buffer, model_matrix_data);
+        
+       //ID3D11RenderTargetView* shadowmap_render_targets[2] = { depth_render_target_view, lightspace_position_render_target_view };
+       //context_->ClearRenderTargetView(depth_render_target_view, white);
+       //context_->ClearRenderTargetView(lightspace_position_render_target_view, white);
+       //context_->OMSetRenderTargets(2, shadowmap_render_targets, depth_stencil_view_);
+       //context_->ClearDepthStencilView(depth_stencil_view_, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0.0f);
+       //
+       //BindShaders(shadowmap_shader);
+       //
+       //context_->VSSetConstantBuffers(0, 1, &view_proj_constant_buffer);
+       //context_->VSSetConstantBuffers(1, 1, &model_matrix_constant_buffer);
+       //SetCBuffer(view_proj_constant_buffer, lightspace_data);
+       //SetCBuffer(model_matrix_constant_buffer, model_matrix_data);
         
         
 
 #pragma endregion
         
 #pragma region GBuffer
-
+        
         ID3D11RenderTargetView* gbuffer_render_targets[3] = { position_render_target_view, normal_render_target_view, color_render_target_view };
         context_->ClearRenderTargetView(position_render_target_view, bgc);
         context_->ClearRenderTargetView(normal_render_target_view, bgc);
@@ -892,19 +941,20 @@ void App::Run()
         SetCBuffer(camera_constant_buffer, camera_data);
         SetCBuffer(model_matrix_constant_buffer, model_matrix_data);
 
-        RenderSolid();
+        
         if (render_wireframe)
         {
             RenderWireframe();
         }
 
+        
         for (auto& chunk : chunks)
         {
             context_->IASetVertexBuffers(0, 1, &chunk.vertex_buffer, &stride, &offset);
             context_->IASetIndexBuffer(chunk.index_buffer, DXGI_FORMAT_R32_UINT, 0);
             context_->DrawIndexed(3 * chunk.faces.size(), 0, 0);
         }
-        
+        RenderSolid();
 #pragma endregion
 
 #pragma region Light
@@ -942,7 +992,8 @@ void App::Run()
 
         ImGui::Begin("Menu");
 
-        ImGui::Checkbox("Render wireframe", &render_wireframe);
+        ImGui::Checkbox("(Q) Render wireframe", &render_wireframe);
+        ImGui::Checkbox("(F) Fly", &camera.fly);
 
         float fps = ImGui::GetIO().Framerate;
 
