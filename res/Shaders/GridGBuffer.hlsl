@@ -86,11 +86,7 @@ PixelOutput PSMain(PixelInput input)
     float wpx = input.world_position.x + sin(input.world_position.z + time * 0.5 * 0.241378);
     float wpz = input.world_position.z + sin(input.world_position.x + time * 0.5 * 0.345786);
     
-    if (fmod(abs(input.world_position.x) + 0.1 * 0.1, offset) <= 0.1
-    || fmod(abs(input.world_position.z) + 0.1 * 0.1, offset) <= 0.1)
-    {
-        const_color = float4(0.1, 0.1, 0.2, 1.0);
-    }
+    
     
     
     

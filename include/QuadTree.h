@@ -13,9 +13,9 @@
 struct QuadTreeNode
 {
 	int depth = 0;
-	int size;
-	int x;
-	int y;
+	int size = 0;
+	int x = 0;
+	int y = 0;
 
 	QuadTreeNode* tl = nullptr;
 	QuadTreeNode* tr = nullptr;

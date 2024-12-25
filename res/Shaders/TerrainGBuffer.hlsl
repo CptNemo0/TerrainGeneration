@@ -75,7 +75,17 @@ PixelInput VSMain(VertexInput input)
 PixelOutput PSMain(PixelInput input)
 {
     PixelOutput output;
+    
     output.color = float4(color.rgb, 1.0);
+    
+    if (fmod(abs(input.world_position.x) + 100.0, 2048.0) <= 100.0
+    || fmod(abs(input.world_position.z) + 100.0, 2048.0) <= 100.0)
+    {
+        output.color = float4(0.1, 0.1, 0.2, 1.0);
+    }
+    
+   
+    //output.color = float4(color.rgb, 1.0);
     output.position = input.world_position;
 
     output.normal = input.normal * 0.5 + 0.5;

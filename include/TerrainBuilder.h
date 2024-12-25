@@ -2,6 +2,7 @@
 
 #include "QuadTree.h"
 #include "TerrainChunk.h"
+#include "Cache.h"
 #include <queue>
 #include <vector>
 #include <memory>
@@ -27,8 +28,9 @@ public:
 	std::vector<std::thread> workers;
 	int num_workers;
 
-	
-	TerrainBuilder(std::mutex* device_mutex_ptr, int num_workers);
+	Cache cache;
+
+	TerrainBuilder(std::mutex* device_mutex_ptr, int num_workers, int cap);
 
 	void Finish();
 
@@ -39,5 +41,4 @@ public:
 	void Init();
 
 	bool GetChunk(std::size_t node, TerrainChunk& chunk) const;
-
 };

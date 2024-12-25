@@ -33,7 +33,7 @@ void FPCamera::UpdateTargetPosition(int dx, int dy)
 	
 	auto target_forward = DirectX::XMVector3Normalize(DirectX::XMVectorSet(x_cos, y_sin, z_sin, 1.0f));
 
-	forward = DirectX::XMQuaternionSlerp(forward, target_forward, 0.1f);
+	forward = DirectX::XMQuaternionSlerp(forward, target_forward, 0.3f);
 	forward = DirectX::XMVectorSet(DirectX::XMVectorGetX(forward), y_sin, DirectX::XMVectorGetZ(forward), 0.0f);
 
 	target_position = DirectX::XMVectorAdd(position, forward);

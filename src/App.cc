@@ -714,11 +714,11 @@ void App::Run()
     FPCamera camera{};
     camera.position = DirectX::XMVectorSet(2500.0f, 50.0f, 2500.0f, 0.0f);
 
-    TerrainBuilder terrain_builder{ &device_mutex, 24 };
+    TerrainBuilder terrain_builder{ &device_mutex, 24, 2048 };
     terrain_builder.Init();
 
     std::unordered_map<std::size_t, TerrainChunk> built_terrain;
-    std::vector<TerrainChunk> chunks;
+    std::vector<TerrainChunk*> chunks;
     std::vector<std::size_t> chunks_hashes;
     std::queue<QuadTreeNode*> tbb_queue;
 
@@ -742,7 +742,7 @@ void App::Run()
 
         quad_tree_ctr++;
 
-        if (quad_tree_ctr % 5 == 0)
+        if (quad_tree_ctr % 4 == 0)
         {
             quad_tree.CleanTree();
             quad_tree.BuildTree(DirectX::XMVectorGetX(camera.position), DirectX::XMVectorGetZ(camera.position));
@@ -929,25 +929,24 @@ void App::Run()
 
         if (render_wireframe) RenderWireframe();
 
-        std::this_thread::sleep_for(std::chrono::microseconds(100));
         chunks.reserve(chunks_hashes.size());
         {
             std::unique_lock map_lock(terrain_builder.map_mutex);
-            //std::cout << "MAP_mutex LOcked by MAIN\n";
+           
             for (auto& hash : chunks_hashes)
             {
-                if(terrain_builder.built.contains(hash)) chunks.push_back(terrain_builder.built[hash]);
+                chunks.push_back(terrain_builder.cache.get(hash));
             }
-            //std::cout << "MAP_mutex UNlocked by MAIN\n";
         }        
 
-        for (auto& chunk : chunks)
-        {
-            context_->IASetVertexBuffers(0, 1, &chunk.vertex_buffer, &stride, &offset);
-            context_->IASetIndexBuffer(chunk.index_buffer, DXGI_FORMAT_R32_UINT, 0);
-            context_->DrawIndexed(3 * chunk.faces.size(), 0, 0);
-        }
-        chunks.clear();
+       for (auto& chunk : chunks)
+       {
+           if (!chunk) continue;
+           context_->IASetVertexBuffers(0, 1, &(chunk->vertex_buffer), &stride, &offset);
+           context_->IASetIndexBuffer(chunk->index_buffer, DXGI_FORMAT_R32_UINT, 0);
+           context_->DrawIndexed(3 * chunk->faces.size(), 0, 0);
+       }
+       chunks.clear();
 #pragma endregion
 
 #pragma region Light
@@ -1001,7 +1000,7 @@ void App::Run()
 
 #pragma endregion
 
-        swap_chain_->Present(0, 0);
+        swap_chain_->Present(1, 0);
     }
 
     terrain_builder.Finish();

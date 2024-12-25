@@ -29,8 +29,6 @@ public:
 	
 	TerrainChunk(float x, float z, float size, int resolution);
 	
-
-
 	TerrainChunk();
 
 	void CreateVertices();
@@ -47,4 +45,7 @@ public:
 
 	void BuildChunkAndBuffers();
 	void BuildChunk();
+
+	~TerrainChunk();
+	void CleanUp();
 };

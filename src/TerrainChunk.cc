@@ -16,7 +16,7 @@ TerrainChunk::TerrainChunk()
 {
     this->x = 0;
     this->z = 0;
-    this->size = (10);
+    this->size = (0);
     this->resolution = (16 );
     this->dp = (size) / resolution;
     resolution += 1;
@@ -177,6 +177,9 @@ void TerrainChunk::CreateBuffers()
     index_buffer_description.BindFlags = D3D11_BIND_INDEX_BUFFER;
     D3D11_SUBRESOURCE_DATA screen_quad_index_srd = { &(faces[0]), 0, 0 };
 
+    vertex_buffer = nullptr;
+    index_buffer = nullptr;
+
     App::device_->CreateBuffer(&buffer_description, &screen_quad_vertex_srd, &vertex_buffer);
     App::device_->CreateBuffer(&index_buffer_description, &screen_quad_index_srd, &index_buffer);
 }
@@ -194,4 +197,25 @@ void TerrainChunk::BuildChunk()
     CreateVertices();
     CreateFaces();
     CreateNormals();
+}
+
+void TerrainChunk::CleanUp()
+{
+    //if (x != 0 && z != 0 && size != 0)
+    //{
+    //    std::cout << "CleanUp\n";
+    //}
+    
+    //std::cout << "x: " << x << " z: " << z << std::endl;
+    if(vertex_buffer) vertex_buffer->Release();
+    vertex_buffer = nullptr;
+    if(index_buffer) index_buffer->Release();
+    index_buffer = nullptr;
+    vertices.resize(0);
+    faces.resize(0);
+}
+
+TerrainChunk::~TerrainChunk()
+{
+    CleanUp();
 }
