@@ -37,9 +37,14 @@ public:
 
 	void CreateFaces();
 
+	DirectX::XMVECTOR GetVertex(int x, int y);
+
+	void AccumulateNormal(int x, int z, DirectX::XMVECTOR& normal);
+
 	void CreateNormals();
 
 	void CreateBuffers();
 
+	void BuildChunkAndBuffers();
 	void BuildChunk();
 };

@@ -24,7 +24,7 @@ public:
 
     void randomizeSeed();
     void setSeed(const unsigned int& seedNumber);
-    double signedFBM(const double& xPos, const double& yPos, const unsigned int& octaves, const double& lacunarity, const double& gain, double frequency);
+    double signedFBM(const double& xPos, const double& yPos, const unsigned int& octaves, const double& lacunarity, const double& gain, double frequency, double exponent);
     double signedRawNoise(const double& xPos, const double& yPos);
     double unsignedFBM(const double& xPos, const double& yPos, const unsigned int& octaves, const double& lacunarity, const double& gain, double frequency);
     double unsignedRawNoise(const double& xPos, const double& yPos);

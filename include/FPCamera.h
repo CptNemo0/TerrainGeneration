@@ -3,6 +3,7 @@
 #include "DirectXMath.h"
 #include <iostream>
 #include "noise.h"
+#include <iostream>
 class FPCamera
 {
 public:
@@ -25,7 +26,7 @@ public:
 	float right_s = 0.0f;
 
 	float velocity = 0.0f;
-	float max_velocity = 0.2f;
+	float max_velocity = 10.1f;
 	float sensitivity = 1.0f;
 	float acceleration = 1.0f;
 	float smoothing_factor = 0.9f;
@@ -33,8 +34,8 @@ public:
 	bool fly = false;
 
 	float bob_t = 0.0f;
-	float bob_depth = 1.0f;
-	float bob_speed = 7.5f;
+	float bob_depth = 1.50f;
+	float bob_speed = 11.5f;
 	float bob_height = 0;
 
 	FPCamera();

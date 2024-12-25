@@ -60,7 +60,7 @@ SamplerState texture_sampler
 Texture2D position_texture : register(t0);
 Texture2D normal_texture : register(t1);
 Texture2D color_texture : register(t2);
-Texture2D shadow_texture : register(t3);
+Texture2D depth_texture : register(t3);
 Texture2D lightspace_position_texture : register(t4);
 
 float CalculateVisibility(float4 lightspace_position)
@@ -69,7 +69,7 @@ float CalculateVisibility(float4 lightspace_position)
     p.y = 1.0 - p.y;
     float4 shadow_uv = p;
 
-    float shadow_depth = shadow_texture.Sample(texture_sampler, shadow_uv.xy).r;
+    float shadow_depth = depth_texture.Sample(texture_sampler, shadow_uv.xy).r;
 
     float bias = 0.005;
 
@@ -87,7 +87,8 @@ float4 PSMain(PixelInput input) : SV_Target
     float4 world_position = float4(position_texture.Sample(texture_sampler, input.uv).rgb, 1.0);
     float4 normal = float4(normal_texture.Sample(texture_sampler, input.uv).rgb * 2.0 - 1.0, 1.0);
     float4 color = float4(color_texture.Sample(texture_sampler, input.uv).rgb, 1.0);
-    float4 shadow = float4(shadow_texture.Sample(texture_sampler, input.uv).rgb, 1.0);
+    float4 depth = float4(depth_texture.Sample(texture_sampler, input.uv).rgb, 1.0);
+    float4 light_space = float4(lightspace_position_texture.Sample(texture_sampler, input.uv).rgb, 1.0);
     
     float4 light_position = sl_position;
     float4 diffuse_color = sl_diffuse_color;
@@ -112,8 +113,8 @@ float4 PSMain(PixelInput input) : SV_Target
     diffuse = max(dot(light_direction, normal), 0.0);
     spec = pow(max(dot(view_direction, halfway_direction), 0.0), shinieness);
         
-
-    
     float4 after_light = (ambient_light + (diffuse * sl_diffuse_color + spec * sl_specular_color) * intensity) * color;
     return after_light;
+    
+    //return depth;
 }

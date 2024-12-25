@@ -150,7 +150,7 @@ void SimplexNoise::setSeed(const unsigned int& seedNumber) {
 
  * @return           - Fractional Brownian motion for noise value
  */
-double SimplexNoise::signedFBM(const double& xPos, const double& yPos, const unsigned int& octaves, const double& lacunarity, const double& gain, double frequency) {
+double SimplexNoise::signedFBM(const double& xPos, const double& yPos, const unsigned int& octaves, const double& lacunarity, const double& gain, double frequency, double exponent) {
     double sum = 0;
     double amplitude = 1.0;
     double maxValue = 0;  // Used for normalizing result between -1.0 and 1.0
@@ -160,10 +160,10 @@ double SimplexNoise::signedFBM(const double& xPos, const double& yPos, const uns
         amplitude *= gain;
         frequency *= lacunarity;
     }
-
-    return sum / maxValue;
+    auto tmp = sum / maxValue;
+    return pow(tmp, exponent);
 }
 
 double SimplexNoise::unsignedFBM(const double& xPos, const double& yPos, const unsigned int& octaves, const double& lacunarity, const double& gain, double frequency) {
-    return signedFBM(xPos, yPos, octaves, lacunarity, gain, frequency) / 2.0 + 0.5;
+    return signedFBM(xPos, yPos, octaves, lacunarity, gain, frequency, 1.0f) / 2.0 + 0.5;
 }

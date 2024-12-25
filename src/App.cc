@@ -4,8 +4,6 @@ ID3D11Device* App::device_ = nullptr;
 ID3D11DeviceContext* App::context_ = nullptr;
 IDXGISwapChain* App::swap_chain_ = nullptr;
 ID3D11RenderTargetView* App::main_render_target_view_ = nullptr;
-std::mutex mtx;
-std::mutex dc_mtx;
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
@@ -331,7 +329,7 @@ void App::Run()
     DirectX::XMVECTOR  up_direction_iv = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 
     auto view_matrix = DirectX::XMMatrixLookAtLH(camera_position_iv, center_position_iv, up_direction_iv);
-    auto projection_matrix = DirectX::XMMatrixPerspectiveFovLH(0.7864f, 16.0f / 9.0f, 0.1f, 100000.0f);
+    auto projection_matrix = DirectX::XMMatrixPerspectiveFovLH(3.14f * 0.5f, 16.0f / 9.0f, 0.1f, 100000.0f);
 
 #pragma region Buffers
     ID3D11UnorderedAccessView* cleaner_uav = nullptr;
@@ -591,7 +589,7 @@ void App::Run()
     model_matrix_data.ti_model_matrix = DirectX::XMMatrixTranspose(DirectX::XMMatrixInverse(&matrix_determinant, model_matrix_data.model_matrix));
 
     SpotlightBuffer spotlight_data;
-    spotlight_data.position = DirectX::XMVECTOR({ 5.0f,5.0f, 5.0f, 1.0f });
+    spotlight_data.position = DirectX::XMVECTOR({ 0.0f,1000.0f, 0.0f, 1.0f });
     spotlight_data.direction = DirectX::XMVector4Normalize({ -0.0f, -1.0f, -0.0f, 1.0f });
     spotlight_data.diffuse_color = DirectX::XMVECTOR({ 1.0f, 1.0f, 1.0f, 1.0f });
     spotlight_data.specular_color = DirectX::XMVECTOR({ 1.0f, 1.0f, 1.0f, 1.0f });
@@ -716,12 +714,18 @@ void App::Run()
     FPCamera camera{};
     camera.position = DirectX::XMVectorSet(2500.0f, 50.0f, 2500.0f, 0.0f);
 
+    TerrainBuilder terrain_builder{ &device_mutex, 24 };
+    terrain_builder.Init();
+
     std::unordered_map<std::size_t, TerrainChunk> built_terrain;
     std::vector<TerrainChunk> chunks;
+    std::vector<std::size_t> chunks_hashes;
+    std::queue<QuadTreeNode*> tbb_queue;
+
     QuadTreeNodePtrHash hasher;
-    QuadTree quad_tree{ 4 * 4096, DirectX::XMVectorGetX(camera.position), DirectX::XMVectorGetZ(camera.position), 256 };
+    QuadTree quad_tree{ 4096 * 32, DirectX::XMVectorGetX(camera.position), DirectX::XMVectorGetZ(camera.position), 6 };
     POINT prev_mouse_pos = { 0, 0 };
-    int quad_tree_ctr = 0;
+    int quad_tree_ctr = -1;
 
     while (!done)
     {
@@ -737,34 +741,28 @@ void App::Run()
         dt_data.idt = 1.0f / dt;
 
         quad_tree_ctr++;
-        if (quad_tree_ctr % static_cast<int>(dt_data.idt / 4) == 0)
+
+        if (quad_tree_ctr % 5 == 0)
         {
-            
             quad_tree.CleanTree();
-            quad_tree.BuildTree(DirectX::XMVectorGetX(camera.position), DirectX::XMVectorGetZ(camera.position),
-                                DirectX::XMVectorGetX(camera.forward), DirectX::XMVectorGetZ(camera.forward));
+            quad_tree.BuildTree(DirectX::XMVectorGetX(camera.position), DirectX::XMVectorGetZ(camera.position));
+
+            terrain_builder.EnqueLeaves(quad_tree.leaves);
+        }
+
+        if (quad_tree_ctr % 60 == 0)
+        {
+            chunks_hashes.clear();
             chunks.clear();
+            
 
             for (auto& node : quad_tree.leaves)
             {
                 auto hash = hasher(node);
-                if (built_terrain.contains(hash))
-                {
-                    chunks.push_back(built_terrain[hash]);
-                }
-                else
-                {
-                    built_terrain[hash] = { static_cast<float>(node->x),
-                                        static_cast<float>(node->y),
-                                        static_cast<float>(node->size),
-                                        20 };
-                    built_terrain[hash].BuildChunk();
-                    chunks.push_back(built_terrain[hash]);
-                    std::cout << "Created: " << node->to_string() << std::endl;
-                }
+                chunks_hashes.push_back(hash);
+
             }
         }
-            
         
 #pragma region Input handling
 
@@ -822,6 +820,8 @@ void App::Run()
                         case 0x46:
                         {
                             camera.fly = !camera.fly;
+                            camera.bob_height = 0.0f;
+                            camera.bob_t = 0.0f;
                             break;
                         }
 
@@ -881,12 +881,9 @@ void App::Run()
 
         camera.MoveCamera(dt);
 #pragma endregion
-
-        
-       
+     
 #pragma region Shadow map
 
-        
        //ID3D11RenderTargetView* shadowmap_render_targets[2] = { depth_render_target_view, lightspace_position_render_target_view };
        //context_->ClearRenderTargetView(depth_render_target_view, white);
        //context_->ClearRenderTargetView(lightspace_position_render_target_view, white);
@@ -897,10 +894,17 @@ void App::Run()
        //
        //context_->VSSetConstantBuffers(0, 1, &view_proj_constant_buffer);
        //context_->VSSetConstantBuffers(1, 1, &model_matrix_constant_buffer);
-       //SetCBuffer(view_proj_constant_buffer, lightspace_data);
-       //SetCBuffer(model_matrix_constant_buffer, model_matrix_data);
-        
-        
+       //std::swap(view_proj_data.projection_matrix, lightspace_data.projection_matrix); 
+       //SetCBuffer(view_proj_constant_buffer, view_proj_data);
+       //std::swap(view_proj_data.projection_matrix, lightspace_data.projection_matrix);
+       //
+       // 
+       //for (auto& chunk : chunks)
+       //{
+       //    context_->IASetVertexBuffers(0, 1, &chunk.vertex_buffer, &stride, &offset);
+       //    context_->IASetIndexBuffer(chunk.index_buffer, DXGI_FORMAT_R32_UINT, 0);
+       //    context_->DrawIndexed(3 * chunk.faces.size(), 0, 0);
+       //}
 
 #pragma endregion
         
@@ -913,24 +917,6 @@ void App::Run()
         context_->OMSetRenderTargets(3, gbuffer_render_targets, depth_stencil_view_);
         context_->ClearDepthStencilView(depth_stencil_view_, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0.0f);
 
-        BindShaders(gbuffer_grid_shader);
-
-        context_->VSSetConstantBuffers(0, 1, &view_proj_constant_buffer);
-        context_->VSSetConstantBuffers(1, 1, &camera_constant_buffer);
-        context_->VSSetConstantBuffers(2, 1, &model_matrix_constant_buffer);
-        context_->PSSetConstantBuffers(3, 1, &grid_constant_buffer);
-        context_->PSSetConstantBuffers(4, 1, &bg_color_constant_buffer);
-        SetCBuffer(view_proj_constant_buffer, view_proj_data);
-        SetCBuffer(camera_constant_buffer, camera_data);
-        SetCBuffer(model_matrix_constant_buffer, model_matrix_data);
-        SetCBuffer(grid_constant_buffer, grid_data);
-        SetCBuffer(bg_color_constant_buffer, background_color_data);
-
-        context_->IASetVertexBuffers(0, 1, &rectangle_vertex_buffer, &stride, &offset);
-        context_->IASetIndexBuffer(rectangle_index_buffer, DXGI_FORMAT_R32_UINT, 0);
-        context_->DrawIndexed(6, 0, 0);
-
-        context_->Flush();
         BindShaders(gbuffer_terrain_shader);
         context_->PSSetConstantBuffers(0, 1, &color_constant_buffer);
         context_->VSSetConstantBuffers(1, 1, &view_proj_constant_buffer);
@@ -941,24 +927,32 @@ void App::Run()
         SetCBuffer(camera_constant_buffer, camera_data);
         SetCBuffer(model_matrix_constant_buffer, model_matrix_data);
 
-        
-        if (render_wireframe)
-        {
-            RenderWireframe();
-        }
+        if (render_wireframe) RenderWireframe();
 
-        
+        std::this_thread::sleep_for(std::chrono::microseconds(100));
+        chunks.reserve(chunks_hashes.size());
+        {
+            std::unique_lock map_lock(terrain_builder.map_mutex);
+            //std::cout << "MAP_mutex LOcked by MAIN\n";
+            for (auto& hash : chunks_hashes)
+            {
+                if(terrain_builder.built.contains(hash)) chunks.push_back(terrain_builder.built[hash]);
+            }
+            //std::cout << "MAP_mutex UNlocked by MAIN\n";
+        }        
+
         for (auto& chunk : chunks)
         {
             context_->IASetVertexBuffers(0, 1, &chunk.vertex_buffer, &stride, &offset);
             context_->IASetIndexBuffer(chunk.index_buffer, DXGI_FORMAT_R32_UINT, 0);
             context_->DrawIndexed(3 * chunk.faces.size(), 0, 0);
         }
-        RenderSolid();
+        chunks.clear();
 #pragma endregion
 
 #pragma region Light
 
+        RenderSolid();
         context_->OMSetRenderTargets(1, &main_render_target_view_, depth_stencil_view_);
         context_->ClearRenderTargetView(main_render_target_view_, bgc);
         context_->ClearDepthStencilView(depth_stencil_view_, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0.0f);
@@ -1009,5 +1003,7 @@ void App::Run()
 
         swap_chain_->Present(0, 0);
     }
+
+    terrain_builder.Finish();
 }
 

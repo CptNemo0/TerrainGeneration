@@ -8,6 +8,8 @@
 #include <mutex>
 #include <queue>
 #include <math.h>
+#include <cassert>
+
 struct QuadTreeNode
 {
 	int depth = 0;
@@ -20,8 +22,9 @@ struct QuadTreeNode
 	QuadTreeNode* bl = nullptr;
 	QuadTreeNode* br = nullptr;
 
-	QuadTreeNode(int x, int y, int size)
+	QuadTreeNode(int x, int y, int size, int depth)
 	{
+		this->depth = depth;
 		this->x = x;
 		this->y = y;
 		this->size = size;
@@ -41,11 +44,12 @@ struct QuadTreeNodeHash
 {
 	std::size_t operator()(const QuadTreeNode& node) const
 	{
+		std::size_t h1 = std::hash<float>()(node.depth);
 		std::size_t h2 = std::hash<float>()(node.size);
 		std::size_t h3 = std::hash<float>()(node.x);
 		std::size_t h4 = std::hash<float>()(node.y);
 
-		return (h2 << 1) ^ (h3 << 2) ^ (h4 << 3);
+		return h1 ^ (h2 << 1) ^ (h3 << 2) ^ (h4 << 3);
 	}
 };
 
@@ -53,11 +57,20 @@ struct QuadTreeNodePtrHash
 {
 	std::size_t operator()(const QuadTreeNode* node) const
 	{
+		std::size_t h1 = std::hash<float>()(node->depth);
 		std::size_t h2 = std::hash<float>()(node->size);
 		std::size_t h3 = std::hash<float>()(node->x);
 		std::size_t h4 = std::hash<float>()(node->y);
 
-		return (h2 << 1) ^ (h3 << 2) ^ (h4 << 3);
+		return h1 ^ (h2 << 1) ^ (h3 << 2) ^ (h4 << 3);
+	}
+};
+
+struct QuadTreeNodePtrDepthCopr
+{
+	std::size_t operator()(const QuadTreeNode* node1, const QuadTreeNode* node2) const
+	{
+		return node1->depth < node2->depth;
 	}
 };
 
@@ -67,11 +80,8 @@ public:
 	int start_size;
 	int start_x;
 	int start_y;
-	int min_size;
+	int max_depth;
 	int inner_chunk_size;
-
-	float fwd_x;
-	float fwd_y;
 
 	QuadTreeNode* head;
 
@@ -88,71 +98,58 @@ public:
 		return (ctr == 1);
 	}
 
-	bool visible(int x, int y)
-	{
-		DirectX::XMVECTOR dir = DirectX::XMVectorSet(x, y, 0.0f, 0.0f);
-		DirectX::XMVECTOR fwd = DirectX::XMVectorSet(fwd_x, fwd_y, 0.0f, 0.0f);
 
-		dir = DirectX::XMVector2Normalize(dir);
-		fwd = DirectX::XMVector2Normalize(fwd);
-
-		auto dot = DirectX::XMVector2Dot(dir, fwd);
-		
-		return DirectX::XMVectorGetX(dot) > 0;
-	}
-
-	QuadTree(int size, float x, float y, int msize)
+	QuadTree(int size, float x, float y, int max_depth)
 	{
 		assert(ispow2(size));
-		assert(ispow2(msize));
+
 		this->start_size = size;
 		start_x = x;
 		start_y = y;
-		min_size = msize;
+		this->max_depth = max_depth;
 		head = nullptr;
+
+		inner_chunk_size = size / pow(2, max_depth);
 	}
 
-	int BuildTreeDfs(QuadTreeNode* current, const float x, const float y)
+	void BuildTreeDfs(QuadTreeNode* current, const float x, const float y)
 	{
-		if (!current) return 0;
+		if (!current) return;
 		auto new_size = current->size / 2;
+		bool in = (current->x - new_size <= x &&
+				   current->x + new_size >= x &&
+				   current->y - new_size <= y &&
+				   current->y + new_size >= y);
+
+		
 		auto half = new_size / 2;
-		auto distance = ((current->x - x) * (current->x - x) + (current->y - y) * (current->y - y));
-
-		current->depth = 1;
-
-		if (distance < current->size * current->size && current->size >(min_size / 4))
+		auto distance = ((x - current->x) * (x - current->x) + (y - current->y) * (y - current->y));
+		if (distance / current->size < current->size &&
+			current->size >(inner_chunk_size / 2) &&
+			current->depth < max_depth)
 		{
-			current->tl = new QuadTreeNode(current->x - half, current->y + half, new_size);
-			current->tr = new QuadTreeNode(current->x + half, current->y + half, new_size);
-			current->bl = new QuadTreeNode(current->x - half, current->y - half, new_size);
-			current->br = new QuadTreeNode(current->x + half, current->y - half, new_size);
+			current->tl = new QuadTreeNode(current->x - half, current->y + half, new_size, current->depth + 1);
+			current->tr = new QuadTreeNode(current->x + half, current->y + half, new_size, current->depth + 1);
+			current->bl = new QuadTreeNode(current->x - half, current->y - half, new_size, current->depth + 1);
+			current->br = new QuadTreeNode(current->x + half, current->y - half, new_size, current->depth + 1);
 
-			current->depth = max(BuildTreeDfs(current->tl, x, y), current->depth);
-			current->depth = max(BuildTreeDfs(current->tr, x, y), current->depth);
-			current->depth = max(BuildTreeDfs(current->bl, x, y), current->depth);
-			current->depth = max(BuildTreeDfs(current->br, x, y), current->depth);
-
-			current->depth++;
+			BuildTreeDfs(current->tl, x, y), current->depth;
+			BuildTreeDfs(current->tr, x, y), current->depth;
+			BuildTreeDfs(current->bl, x, y), current->depth;
+			BuildTreeDfs(current->br, x, y), current->depth;
 		}
 		else
 		{
 			leaves.push_back(current);
 		}
-
-		return current->depth;
 	}
 
-	void BuildTree(int x, int y, float fwd_x, float fwd_y)
+	void BuildTree(int x, int y)
 	{
-		this->fwd_x = fwd_x;
-		this->fwd_y = fwd_y;
-
-		start_x = (x / min_size) * min_size;
-		start_y = (y / min_size) * min_size;
+		start_x = (x / inner_chunk_size) * inner_chunk_size;
+		start_y = (y / inner_chunk_size) * inner_chunk_size;
 		
-		std::queue<QuadTreeNode*> q;
-		head = new QuadTreeNode(start_x, start_y, start_size);
+		head = new QuadTreeNode(start_x, start_y, start_size, 0);
 		
 		BuildTreeDfs(head, x, y);
 	}

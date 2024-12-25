@@ -50,9 +50,14 @@ void FPCamera::MoveCamera(float dt)
 	}
 	else
 	{
-		bob_height *= (1.0f - bob_speed);
+		bob_height *= (1.0f - (bob_speed*dt));
 		bob_t = 0.0f;
-		velocity *= 0.75f;
+		velocity *= acceleration;
+	}
+
+	if (bob_t >= 2.0f * 3.14159f)
+	{
+		bob_t -= 2.0f * 3.14159f;
 	}
 
 	if (velocity > max_velocity) 
@@ -75,24 +80,32 @@ void FPCamera::MoveCamera(float dt)
 	auto right_move = DirectX::XMVectorScale(right, right_s);
 	auto move = DirectX::XMVectorAdd(forward_move, right_move);
 	move = DirectX::XMVector3Normalize(move);
+	assert(!DirectX::XMVector3IsNaN(move));
 	move = DirectX::XMVectorScale(move, velocity);
 
 	SimplexNoise noise;
-	float local_y = noise.signedFBM(DirectX::XMVectorGetX(position), DirectX::XMVectorGetZ(position), 5, 1.5f, 10.0f, 0.0001);
+	float local_y = noise.signedFBM(DirectX::XMVectorGetX(position), DirectX::XMVectorGetZ(position), 5, 0.02f, 1.0f, 0.00006f, 1.0);
 	local_y *= 100.0f;
+	local_y = pow(local_y, 3);
+	local_y = std::max(local_y, 0.0f);
 	height = height * 0.5f + local_y * 0.5f;
 	height += 10.0f;
-	
-	//local_y *= 1500.0f + 5.0f;
-	//height = height * 0.5f + local_y * 0.5f;
-	
+		
 
-	position = DirectX::XMVectorAdd(position, move);
+
+	assert(!isnan(height));
+
+	auto tmp = DirectX::XMVectorAdd(position, move);
+
+	assert(!DirectX::XMVector3IsNaN(tmp));
+
+	position = tmp;
 
 	if (fly) return;
 
-	//height += bob_height;
+	if(isnormal(bob_height)) height += bob_height;
 	position = DirectX::XMVectorSet(DirectX::XMVectorGetX(position), height, DirectX::XMVectorGetZ(position), 0.0f);
+	assert(!DirectX::XMVector3IsNaN(position));
 
 	
 }

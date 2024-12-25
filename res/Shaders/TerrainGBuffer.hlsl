@@ -49,9 +49,8 @@ StructuredBuffer<float3> normal_buffer : register(t1);
 PixelInput VSMain(VertexInput input)
 {
     PixelInput output;
-    
-    float4 world_position = mul(model_matrix, input.position);
-    float4 view_position = mul(view_matrix, world_position);
+     
+    float4 view_position = mul(view_matrix, input.position);
     float4 proj_position = mul(projection_matrix, view_position);
 
     float4 difference = camera_position - input.position;
@@ -65,7 +64,7 @@ PixelInput VSMain(VertexInput input)
     }
     
     output.projected_position = proj_position;
-    output.world_position = world_position;
+    output.world_position = input.position;
     output.normal = input.normal;
     
     return output;

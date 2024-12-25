@@ -22,6 +22,16 @@ TerrainChunk::TerrainChunk()
     resolution += 1;
 }
 
+float get_y(float local_x, float local_z)
+{
+    SimplexNoise noise{};
+    float local_y = noise.signedFBM(local_x, local_z, 5, 0.02f, 1.0f, 0.00006f, 1.0);
+    local_y *= 100.0f;
+    local_y = pow(local_y, 3);
+    local_y = max(local_y, 0.0f);
+    return local_y;
+}
+
 void TerrainChunk::CreateVertices()
 {
     
@@ -30,7 +40,7 @@ void TerrainChunk::CreateVertices()
     float start_z = z - half_size;
     vertices.resize(resolution * resolution);
 
-    SimplexNoise noise{};
+    
     for (int i = 0; i < resolution; i++)
     {
         for (int j = 0; j < resolution; j++)
@@ -38,9 +48,8 @@ void TerrainChunk::CreateVertices()
             int idx = i * resolution + j;
             float local_x = start_x + dp * i;
             float local_z = start_z + dp * j;
-            float local_y = noise.signedFBM(local_x, local_z, 5, 1.5f, 10.0f, 0.0001);
-            local_y *= 100.0f;
-            vertices[idx] = { local_x, local_y, local_z, 0.0f, 0.0f, 0.0f };
+            
+            vertices[idx] = { local_x, get_y(local_x, local_z), local_z, 0.0f, 0.0f, 0.0f};
         }
     }
 }
@@ -70,35 +79,79 @@ void TerrainChunk::CreateFaces()
     }
 }
 
+DirectX::XMVECTOR TerrainChunk::GetVertex(int x, int z)
+{
+    if (x > -1 && x < resolution && z > -1 && z < resolution)
+    {
+        int idx = resolution * x + z;
+        return DirectX::XMVectorSet(vertices[idx].x, vertices[idx].y, vertices[idx].z, 0.0f);
+    }
+    else
+    {
+        SimplexNoise noise{};
+        float half_size = size * 0.5f;
+        float start_x = this->x - half_size;
+        float start_z = this->z - half_size;
+        float local_x = start_x + dp * x;
+        float local_z = start_z + dp * z;
+        return DirectX::XMVectorSet(local_x, get_y(local_x, local_z), local_z, 0.0f);
+    }
+}
+
+void TerrainChunk::AccumulateNormal(int x, int z, DirectX::XMVECTOR& normal)
+{
+    if (x > -1 && x < resolution && z > -1 && z < resolution)
+    {
+        int idx = resolution * x + z;
+        vertices[idx].nx += DirectX::XMVectorGetX(normal);
+        vertices[idx].ny += DirectX::XMVectorGetY(normal);
+        vertices[idx].nz += DirectX::XMVectorGetZ(normal);
+    }
+}
+
 void TerrainChunk::CreateNormals()
 {
-    for (const auto& [a, b, c] : faces)
+    std::vector<std::pair<int, int>> offsets
     {
-        DirectX::XMVECTOR va = DirectX::XMVectorSet(vertices[a].x, vertices[a].y, vertices[a].z, 0.0f);
-        DirectX::XMVECTOR vb = DirectX::XMVectorSet(vertices[b].x, vertices[b].y, vertices[b].z, 0.0f);
-        DirectX::XMVECTOR vc = DirectX::XMVectorSet(vertices[c].x, vertices[c].y, vertices[c].z, 0.0f);
+        {-1, 1}, {0, 1}, {1, 1}, {1, 0}, {1, -1}, {0, 1}, {-1, -1}, {-1, 0}
+    };
 
-        auto diff1 = DirectX::XMVectorSubtract(vb, va);
-        auto diff2 = DirectX::XMVectorSubtract(vb, vc);
-        auto normal = DirectX::XMVector3Normalize(DirectX::XMVector3Cross(diff1, diff2));
+    auto per_vertex = [this, &offsets](int vertex_i)
+    {
+        int az = vertex_i > 0 ? (vertex_i % resolution) : 0;
+        int ax = (vertex_i - az) / resolution;
+        DirectX::XMVECTOR va = GetVertex(ax, az);
 
-        auto x = DirectX::XMVectorGetX(normal);
-        auto y = DirectX::XMVectorGetY(normal);
-        auto z = DirectX::XMVectorGetZ(normal);
+        for (int i = 0; i < offsets.size(); i++)
+        {
+            int ii = (i + 1) % offsets.size();
 
-        vertices[a].nx += x;
-        vertices[b].nx += x;
-        vertices[c].nx += x;
+            auto [bx, bz] = offsets[i];
+            auto [cx, cz] = offsets[ii];
 
-        vertices[a].ny += y;
-        vertices[b].ny += y;
-        vertices[c].ny += y;
+            bx += ax;
+            bz += az;
+            cx += ax;
+            cz += az;
+            
+            DirectX::XMVECTOR vb = GetVertex(bx, bz);
+            DirectX::XMVECTOR vc = GetVertex(cx, cz);
 
-        vertices[a].nz += z;
-        vertices[b].nz += z;
-        vertices[c].nz += z;
+            auto diff1 = DirectX::XMVectorSubtract(va, vb);
+            auto diff2 = DirectX::XMVectorSubtract(va, vc);
+            auto normal = DirectX::XMVector3Normalize(DirectX::XMVector3Cross(diff1, diff2));
+
+            AccumulateNormal(ax, az, normal);
+            AccumulateNormal(bx, bz, normal);
+            AccumulateNormal(cx, cz, normal);
+        }
+    };
+
+    for (int i = 0; i < vertices.size(); i++)
+    {
+        per_vertex(i);
     }
-
+    
     for (auto& vertex : vertices)
     {
         DirectX::XMVECTOR normal = DirectX::XMVectorSet(vertex.nx, vertex.ny, vertex.nz, 0.0f);
@@ -128,10 +181,17 @@ void TerrainChunk::CreateBuffers()
     App::device_->CreateBuffer(&index_buffer_description, &screen_quad_index_srd, &index_buffer);
 }
 
-void TerrainChunk::BuildChunk()
+void TerrainChunk::BuildChunkAndBuffers()
 {
     CreateVertices();
     CreateFaces();
     CreateNormals();
     CreateBuffers();
+}
+
+void TerrainChunk::BuildChunk()
+{
+    CreateVertices();
+    CreateFaces();
+    CreateNormals();
 }

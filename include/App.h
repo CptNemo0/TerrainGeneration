@@ -7,6 +7,7 @@
 #include <thread>
 #include <mutex>
 
+#include <algorithm>
 #include <d3d11.h>
 #include <DirectXMath.h>
 
@@ -24,13 +25,14 @@
 #include "TerrainChunk.h"
 #include "FPCamera.h"
 #include "QuadTree.h"
+#include "TerrainBuilder.h"
+
 #ifndef GET_X_LPARAM
 #define GET_X_LPARAM(lp) ((int)(short)LOWORD(lp))
 #endif
 #ifndef GET_Y_LPARAM
 #define GET_Y_LPARAM(lp) ((int)(short)HIWORD(lp))
 #endif
-
 
 class App
 {
@@ -75,7 +77,7 @@ public:
 	static ID3D11DeviceContext* context_;
 	static IDXGISwapChain* swap_chain_;
 	static ID3D11RenderTargetView* main_render_target_view_;
-
+	
 	ID3D11Texture2D* depth_stencil_texture_ = nullptr;
 	ID3D11DepthStencilState* depth_stencil_state_ = nullptr;
 	ID3D11DepthStencilView* depth_stencil_view_ = nullptr;
@@ -93,7 +95,7 @@ public:
 	int window_height_;
 	LPCSTR window_name_;
 
-		
+	std::mutex device_mutex;
 
 	App(int width, int height, LPCSTR name);
 

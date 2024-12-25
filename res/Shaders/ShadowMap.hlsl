@@ -9,6 +9,7 @@ struct VertexInput
 struct PixelInput
 {
     float4 projected_position : SV_POSITION;
+    float dst : DEPTH0;
 };
 
 struct PixelOutput
@@ -29,22 +30,25 @@ cbuffer ModelMatrixBuffer : register(b1)
     float4x4 ti_model_matrix;
 };
 
-StructuredBuffer<float3> position_buffer : register(t0);
-
-PixelInput VSMain(VertexInput input, uint id : SV_VertexID)
+PixelInput VSMain(VertexInput input)
 {
     PixelInput output;
+    float4 view_position = mul(view_matrix, input.position);
+    float4 proj_position = mul(projection_matrix, view_position);
+    output.projected_position = proj_position;
     
-    float4 world_position = mul(model_matrix, input.position);
-    float4x4 light_space_matrix = mul(projection_matrix, view_matrix);
-    output.projected_position = mul(light_space_matrix, world_position);
+    float a = float4(0.0, 1000.0, 0.0, 0.0);
+    output.dst = distance(input.position, a);
+    
     return output;
 }
 
 PixelOutput PSMain(PixelInput input) : SV_TARGET
 {
     PixelOutput output;
-    output.depth    = float4(input.projected_position.z, input.projected_position.z, input.projected_position.z, 1.0);
+    float z = input.projected_position.z;
+    z = log2(0.25 * z + 0.25) + 2;
+    output.depth = float4(input.dst, 1.0, 1.0, 1.0);
     output.position = input.projected_position;
     return output;
 }
