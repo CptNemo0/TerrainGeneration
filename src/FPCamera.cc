@@ -1,10 +1,11 @@
 #include "../include/FPCamera.h"
 
-FPCamera::FPCamera()
+FPCamera::FPCamera(DirectX::XMMATRIX& projection_matrix)
 {
 	position = DirectX::XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
 	target_position = DirectX::XMVector3Normalize(DirectX::XMVectorSet(1.0f, 0.0f, 1.0f, 0.0f));
 	up_direction = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+	this->projection_matrix = projection_matrix;
 }
 
 void FPCamera::UpdateTargetPosition(int dx, int dy)

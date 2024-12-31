@@ -17,8 +17,7 @@ public:
 	std::unordered_map<std::size_t, TerrainChunk> built;
 
 	std::mutex que_mutex;
-	std::mutex map_mutex;
-	std::mutex fin_mutex;
+	std::mutex cache_mutex;
 	std::mutex* device_mutex = nullptr;
 
 	std::atomic<bool> finished = false;

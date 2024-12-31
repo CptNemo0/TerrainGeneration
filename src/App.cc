@@ -322,14 +322,11 @@ void App::Run()
     SetCursorPos(1920.0f * 0.5f, 1080.0f * 0.5f);
     ULONGLONG start_time = GetTickCount64();
 
-    DirectX::XMVECTOR  camera_position_iv = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 1.0f);
-    float camera_distance = 3.0f;
-    DirectX::XMVECTOR  camera_angles = DirectX::XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
-    DirectX::XMVECTOR  center_position_iv = DirectX::XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f);
-    DirectX::XMVECTOR  up_direction_iv = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-
-    auto view_matrix = DirectX::XMMatrixLookAtLH(camera_position_iv, center_position_iv, up_direction_iv);
     auto projection_matrix = DirectX::XMMatrixPerspectiveFovLH(3.14f * 0.5f, 16.0f / 9.0f, 0.1f, 100000.0f);
+    FPCamera camera{ projection_matrix };
+    camera.position = DirectX::XMVectorSet(2500.0f, 50.0f, 2500.0f, 0.0f);
+
+
 
 #pragma region Buffers
     ID3D11UnorderedAccessView* cleaner_uav = nullptr;
@@ -577,11 +574,11 @@ void App::Run()
     grid_data.time = 0.0f;
 
     ViewProjBuffer view_proj_data;
-    view_proj_data.view_matrix = view_matrix;
-    view_proj_data.projection_matrix = projection_matrix;
+    view_proj_data.view_matrix = camera.GetViewMatrix();
+    view_proj_data.projection_matrix = camera.projection_matrix;
 
     CameraBuffer camera_data;
-    camera_data.camera_position = camera_position_iv;
+    camera_data.camera_position = camera.position;
 
     ModelMatrixBuffer model_matrix_data;
     model_matrix_data.model_matrix = DirectX::XMMatrixIdentity();
@@ -598,7 +595,7 @@ void App::Run()
     spotlight_data.intensity = 0.5f;
 
     ViewProjBuffer lightspace_data;
-    lightspace_data.view_matrix = DirectX::XMMatrixLookAtLH(spotlight_data.position, DirectX::XMVectorAdd(spotlight_data.position, spotlight_data.direction), up_direction_iv);
+    lightspace_data.view_matrix = DirectX::XMMatrixLookAtLH(spotlight_data.position, DirectX::XMVectorAdd(spotlight_data.position, spotlight_data.direction), camera.up_direction);
     lightspace_data.projection_matrix = DirectX::XMMatrixOrthographicOffCenterLH(-8.0f, 8.0f, -4.5f, 4.5f, 0.1f, 5000.0f);
 
     TimeBuffer time_data;
@@ -711,16 +708,11 @@ void App::Run()
     bool rotate = false;
     bool render_wireframe = false;
 
-    FPCamera camera{};
-    camera.position = DirectX::XMVectorSet(2500.0f, 50.0f, 2500.0f, 0.0f);
-
     TerrainBuilder terrain_builder{ &device_mutex, 24, 2048 };
     terrain_builder.Init();
 
-    std::unordered_map<std::size_t, TerrainChunk> built_terrain;
     std::vector<TerrainChunk*> chunks;
     std::vector<std::size_t> chunks_hashes;
-    std::queue<QuadTreeNode*> tbb_queue;
 
     QuadTreeNodePtrHash hasher;
     QuadTree quad_tree{ 4096 * 32, DirectX::XMVectorGetX(camera.position), DirectX::XMVectorGetZ(camera.position), 6 };
@@ -742,7 +734,7 @@ void App::Run()
 
         quad_tree_ctr++;
 
-        if (quad_tree_ctr % 4 == 0)
+        if (quad_tree_ctr % 100 == 0)
         {
             quad_tree.CleanTree();
             quad_tree.BuildTree(DirectX::XMVectorGetX(camera.position), DirectX::XMVectorGetZ(camera.position));
@@ -750,7 +742,7 @@ void App::Run()
             terrain_builder.EnqueLeaves(quad_tree.leaves);
         }
 
-        if (quad_tree_ctr % 60 == 0)
+        if (quad_tree_ctr % 1000 == 0)
         {
             chunks_hashes.clear();
             chunks.clear();
@@ -760,7 +752,16 @@ void App::Run()
             {
                 auto hash = hasher(node);
                 chunks_hashes.push_back(hash);
+            }
 
+            chunks.reserve(chunks_hashes.size());
+            {
+                std::unique_lock cache_lock(terrain_builder.cache_mutex);
+
+                for (auto& hash : chunks_hashes)
+                {
+                    chunks.push_back(terrain_builder.cache.get(hash));
+                }
             }
         }
         
@@ -785,6 +786,7 @@ void App::Run()
                     camera.UpdateTargetPosition(GET_X_LPARAM(msg.lParam) - 960, GET_Y_LPARAM(msg.lParam) - 540);
                     camera_data.camera_position = camera.position;
                     view_proj_data.view_matrix = camera.GetViewMatrix();
+
                     SetCursorPos(960.0f, 540.0f);
                     break;
                 }
@@ -929,24 +931,14 @@ void App::Run()
 
         if (render_wireframe) RenderWireframe();
 
-        chunks.reserve(chunks_hashes.size());
+        for (auto& chunk : chunks)
         {
-            std::unique_lock map_lock(terrain_builder.map_mutex);
-           
-            for (auto& hash : chunks_hashes)
-            {
-                chunks.push_back(terrain_builder.cache.get(hash));
-            }
-        }        
-
-       for (auto& chunk : chunks)
-       {
-           if (!chunk) continue;
-           context_->IASetVertexBuffers(0, 1, &(chunk->vertex_buffer), &stride, &offset);
-           context_->IASetIndexBuffer(chunk->index_buffer, DXGI_FORMAT_R32_UINT, 0);
-           context_->DrawIndexed(3 * chunk->faces.size(), 0, 0);
-       }
-       chunks.clear();
+            if (!chunk) continue;
+            context_->IASetVertexBuffers(0, 1, &(chunk->vertex_buffer), &stride, &offset);
+            context_->IASetIndexBuffer(chunk->index_buffer, DXGI_FORMAT_R32_UINT, 0);
+            context_->DrawIndexed(3 * chunk->faces.size(), 0, 0);
+        }
+        
 #pragma endregion
 
 #pragma region Light
@@ -1000,7 +992,7 @@ void App::Run()
 
 #pragma endregion
 
-        swap_chain_->Present(1, 0);
+        swap_chain_->Present(0, 0);
     }
 
     terrain_builder.Finish();

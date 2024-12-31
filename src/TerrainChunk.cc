@@ -25,9 +25,9 @@ TerrainChunk::TerrainChunk()
 float get_y(float local_x, float local_z)
 {
     SimplexNoise noise{};
-    float local_y = noise.signedFBM(local_x, local_z, 5, 0.02f, 1.0f, 0.00006f, 1.0);
-    local_y *= 100.0f;
-    local_y = pow(local_y, 3);
+    float local_y = noise.signedFBM(local_x, local_z, 8, 0.01f, 1.0f, 0.00005f, 1.0);
+    local_y *= 3000.0f;
+    local_y = pow(local_y, 1.625);
     local_y = max(local_y, 0.0f);
     return local_y;
 }

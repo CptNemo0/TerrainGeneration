@@ -21,7 +21,7 @@ void TerrainBuilder::EnqueLeaves(std::vector<QuadTreeNode*>& leaves)
 	std::stack<QuadTreeNode*> s;
 
 	{
-		std::unique_lock<std::mutex> map_lock(map_mutex);
+		std::unique_lock<std::mutex> map_lock(cache_mutex);
 		QuadTreeNodePtrHash hasher;
 		for (auto& node : leaves)
 		{
@@ -83,7 +83,7 @@ void TerrainBuilder::BuilderThread()
 		}
 
 		{
-			std::lock_guard<std::mutex> map_lock(map_mutex);
+			std::lock_guard<std::mutex> map_lock(cache_mutex);
 			cache.put(cache_node);
 			std::cout << "Thread " << id << ": created: " << node->to_string() << std::endl;
 		}

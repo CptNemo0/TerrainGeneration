@@ -12,7 +12,7 @@ public:
 	DirectX::XMVECTOR target_position;
 	DirectX::XMVECTOR forward;
 	DirectX::XMVECTOR right;
-
+	DirectX::XMMATRIX projection_matrix;
 	int previous_x = 0;
 	int previous_y = 0;
 
@@ -26,7 +26,7 @@ public:
 	float right_s = 0.0f;
 
 	float velocity = 0.0f;
-	float max_velocity = 10.1f;
+	float max_velocity = 1.1f;
 	float sensitivity = 1.0f;
 	float acceleration = 10.5f;
 	float smoothing_factor = 0.9f;
@@ -38,7 +38,7 @@ public:
 	float bob_speed = 11.5f;
 	float bob_height = 0;
 
-	FPCamera();
+	FPCamera(DirectX::XMMATRIX& projection_matrix);
 
 	void UpdateTargetPosition(int x, int y);
 	void MoveCamera(float dt);
