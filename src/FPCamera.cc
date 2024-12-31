@@ -65,9 +65,9 @@ void FPCamera::MoveCamera(float dt)
 	{
 		if (fly)
 		{
-			if (velocity > 10.0f * max_velocity)
+			if (velocity > 2.0f * max_velocity)
 			{
-				velocity = max_velocity * 10.0f;
+				velocity = max_velocity * 2.0f;
 			}
 		}
 		else
@@ -85,13 +85,19 @@ void FPCamera::MoveCamera(float dt)
 	move = DirectX::XMVectorScale(move, velocity);
 
 	SimplexNoise noise;
-	float local_y = noise.signedFBM(DirectX::XMVectorGetX(position), DirectX::XMVectorGetZ(position), 5, 0.02f, 1.0f, 0.00006f, 1.0);
-	local_y *= 100.0f;
-	local_y = pow(local_y, 3);
+	float local_y = noise.signedFBM(DirectX::XMVectorGetX(position), DirectX::XMVectorGetZ(position), 8, 0.01f, 1.0f, 0.00005f, 1.0);
+	local_y *= 3000.0f;
 	local_y = std::max(local_y, 0.0f);
+	assert(!isnan(local_y));
+	local_y = powf(local_y, 1.625f);
+	assert(!isnan(local_y));
+	
+
+	assert(!isnan(local_y));
+
 	height = height * 0.5f + local_y * 0.5f;
 	height += 10.0f;
-		
+	
 
 
 	assert(!isnan(height));

@@ -12,7 +12,7 @@
 class TerrainBuilder
 {
 public:
-	std::priority_queue<QuadTreeNode*, std::vector<QuadTreeNode*>, QuadTreeNodePtrDepthCopr> construction_queue;
+	std::priority_queue<QuadTreeNode*, std::vector<QuadTreeNode*>, QuadTreeNodePtrGenDstDepthCompr> construction_queue;
 	std::unordered_set<std::size_t> enqued;
 	std::unordered_map<std::size_t, TerrainChunk> built;
 

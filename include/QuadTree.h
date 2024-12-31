@@ -16,18 +16,20 @@ struct QuadTreeNode
 	int size = 0;
 	int x = 0;
 	int y = 0;
-
+	int distance = 0;
+	uint64_t generation = 0;
 	QuadTreeNode* tl = nullptr;
 	QuadTreeNode* tr = nullptr;
 	QuadTreeNode* bl = nullptr;
 	QuadTreeNode* br = nullptr;
 
-	QuadTreeNode(int x, int y, int size, int depth)
+	QuadTreeNode(int x, int y, int size, int depth, int gen)
 	{
 		this->depth = depth;
 		this->x = x;
 		this->y = y;
 		this->size = size;
+		this->generation = gen;
 	}
 
 	std::string to_string()
@@ -74,6 +76,25 @@ struct QuadTreeNodePtrDepthCopr
 	}
 };
 
+struct QuadTreeNodePtrDstDepthCompr
+{
+	std::size_t operator()(const QuadTreeNode* node1, const QuadTreeNode* node2) const
+	{
+		if (node1->depth == node2->depth) return node1->distance > node2->distance;
+		return node1->depth < node2->depth;
+	}
+};
+
+struct QuadTreeNodePtrGenDstDepthCompr
+{
+	std::size_t operator()(const QuadTreeNode* node1, const QuadTreeNode* node2) const
+	{
+		if (node1->generation != node2->generation) return node1->generation < node2->generation;
+		if (node1->depth == node2->depth) return node1->distance > node2->distance;
+		return node1->depth < node2->depth;
+	}
+};
+
 struct QuadTree
 {
 public:
@@ -82,7 +103,7 @@ public:
 	int start_y;
 	int max_depth;
 	int inner_chunk_size;
-
+	uint64_t generation = 0;
 	QuadTreeNode* head;
 
 	std::vector<QuadTreeNode*> leaves;
@@ -128,10 +149,10 @@ public:
 			current->size >(inner_chunk_size / 2) &&
 			current->depth < max_depth)
 		{
-			current->tl = new QuadTreeNode(current->x - half, current->y + half, new_size, current->depth + 1);
-			current->tr = new QuadTreeNode(current->x + half, current->y + half, new_size, current->depth + 1);
-			current->bl = new QuadTreeNode(current->x - half, current->y - half, new_size, current->depth + 1);
-			current->br = new QuadTreeNode(current->x + half, current->y - half, new_size, current->depth + 1);
+			current->tl = new QuadTreeNode(current->x - half, current->y + half, new_size, current->depth + 1, generation);
+			current->tr = new QuadTreeNode(current->x + half, current->y + half, new_size, current->depth + 1, generation);
+			current->bl = new QuadTreeNode(current->x - half, current->y - half, new_size, current->depth + 1, generation);
+			current->br = new QuadTreeNode(current->x + half, current->y - half, new_size, current->depth + 1, generation);
 
 			BuildTreeDfs(current->tl, x, y), current->depth;
 			BuildTreeDfs(current->tr, x, y), current->depth;
@@ -140,6 +161,7 @@ public:
 		}
 		else
 		{
+			current->distance = distance;
 			leaves.push_back(current);
 		}
 	}
@@ -149,9 +171,10 @@ public:
 		start_x = (x / inner_chunk_size) * inner_chunk_size;
 		start_y = (y / inner_chunk_size) * inner_chunk_size;
 		
-		head = new QuadTreeNode(start_x, start_y, start_size, 0);
+		head = new QuadTreeNode(start_x, start_y, start_size, 0, generation);
 		
 		BuildTreeDfs(head, x, y);
+		generation++;
 	}
 
 

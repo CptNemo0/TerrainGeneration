@@ -322,7 +322,13 @@ void App::Run()
     SetCursorPos(1920.0f * 0.5f, 1080.0f * 0.5f);
     ULONGLONG start_time = GetTickCount64();
 
-    auto projection_matrix = DirectX::XMMatrixPerspectiveFovLH(3.14f * 0.5f, 16.0f / 9.0f, 0.1f, 100000.0f);
+    constexpr float horizontal_fov = DirectX::XMConvertToRadians(90.0f);
+    constexpr float horizontal_fov_speed = DirectX::XMConvertToRadians(105.0f);
+    float aspect_ratio = static_cast<float>(window_width_) / window_height_;
+    float vertical_fov = 2.0f * atan(tan(horizontal_fov / 2.0f) / aspect_ratio);
+    float vertical_fov_speed = 2.0f * atan(tan(horizontal_fov_speed / 2.0f) / aspect_ratio);
+    auto projection_matrix = DirectX::XMMatrixPerspectiveFovLH(vertical_fov, aspect_ratio, 0.1f, 100000.0f);
+    auto projection_matrix_speed = DirectX::XMMatrixPerspectiveFovLH(vertical_fov_speed, aspect_ratio, 0.1f, 100000.0f);
     FPCamera camera{ projection_matrix };
     camera.position = DirectX::XMVectorSet(2500.0f, 50.0f, 2500.0f, 0.0f);
 
@@ -708,14 +714,14 @@ void App::Run()
     bool rotate = false;
     bool render_wireframe = false;
 
-    TerrainBuilder terrain_builder{ &device_mutex, 24, 2048 };
+    TerrainBuilder terrain_builder{ &device_mutex, 16, 4096};
     terrain_builder.Init();
 
     std::vector<TerrainChunk*> chunks;
     std::vector<std::size_t> chunks_hashes;
 
     QuadTreeNodePtrHash hasher;
-    QuadTree quad_tree{ 4096 * 32, DirectX::XMVectorGetX(camera.position), DirectX::XMVectorGetZ(camera.position), 6 };
+    QuadTree quad_tree{ 4096 * 32, DirectX::XMVectorGetX(camera.position), DirectX::XMVectorGetZ(camera.position), 5 };
     POINT prev_mouse_pos = { 0, 0 };
     int quad_tree_ctr = -1;
 
@@ -825,6 +831,15 @@ void App::Run()
                             camera.bob_height = 0.0f;
                             camera.bob_t = 0.0f;
                             break;
+
+                            if (camera.fly)
+                            {
+                                view_proj_data.projection_matrix = projection_matrix_speed;
+                            }
+                            else
+                            {
+                                view_proj_data.projection_matrix = projection_matrix;
+                            }
                         }
 
                         case 0x51:

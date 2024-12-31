@@ -26,9 +26,9 @@ public:
 	float right_s = 0.0f;
 
 	float velocity = 0.0f;
-	float max_velocity = 1.1f;
+	float max_velocity = 1.0f;
 	float sensitivity = 1.0f;
-	float acceleration = 10.5f;
+	float acceleration = 0.5f;
 	float smoothing_factor = 0.9f;
 	
 	bool fly = false;
